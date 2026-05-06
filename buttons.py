@@ -1,6 +1,7 @@
 import random
+from compliments import compliments
 
-def register_button_handlers(bot, compliments):
+def register_button_handlers(bot):
     @bot.message_handler(content_types=["text"])
     def buttons(message):
         if message.text == "Старт":

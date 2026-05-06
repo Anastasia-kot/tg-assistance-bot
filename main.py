@@ -1,5 +1,5 @@
 import telebot
-
+import os
 from dotenv import load_dotenv
 
 from buttons import register_button_handlers

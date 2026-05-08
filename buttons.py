@@ -1,5 +1,3 @@
-import random
-from compliments import compliments
 from auth import is_allowed_user
 from testdb import list_tasks
 

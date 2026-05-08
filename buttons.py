@@ -4,17 +4,6 @@ from compliments import compliments
 def register_button_handlers(bot):
     @bot.message_handler(content_types=["text"])
     def buttons(message):
-        if message.text == "Старт":
-            bot.send_message(
-                message.chat.id,
-                text="Я могу поддержать тебя и поднять настроение. Просто попроси об этом",
-            )
-            return
-
-        if message.text == "Комплимент":
-            bot.send_message(message.chat.id, text=str(random.choice(compliments)))
-            return
-
         if message.text == "Добавить задачу":
             bot.send_message(message.chat.id, text="Ок. Напиши задачу текстом следующим сообщением.")
             return

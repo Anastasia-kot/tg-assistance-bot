@@ -5,8 +5,6 @@ def register_command_handlers(bot):
     def start_message(message):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         buttons = [
-            types.KeyboardButton("Старт"),
-            types.KeyboardButton("Комплимент"),
             types.KeyboardButton("Добавить задачу"),
             types.KeyboardButton("Удалить задачу"),
             types.KeyboardButton("Список задач"),

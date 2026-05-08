@@ -4,9 +4,14 @@ def register_command_handlers(bot):
     @bot.message_handler(commands=["start"])
     def start_message(message):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        start_button = types.KeyboardButton("Старт")
-        action_button = types.KeyboardButton("Комплимент")
-        markup.add(start_button, action_button)
+        buttons = [
+            types.KeyboardButton("Старт"),
+            types.KeyboardButton("Комплимент"),
+            types.KeyboardButton("Добавить задачу"),
+            types.KeyboardButton("Удалить задачу"),
+            types.KeyboardButton("Список задач"),
+        ]
+        markup.add(*buttons)
 
         bot.send_message(
             message.chat.id,

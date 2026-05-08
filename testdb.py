@@ -1,11 +1,12 @@
 import os
-
 from dotenv import load_dotenv
 
 load_dotenv()
 
+print("[testdb] file loaded")
 
 def run_db_check():
+    print("[testdb] starting db check")
     try:
         import psycopg
     except ModuleNotFoundError as e:

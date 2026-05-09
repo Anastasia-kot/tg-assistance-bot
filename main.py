@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 from buttons import register_button_handlers
 from commands import register_command_handlers
-from testdb import run_db_check
+from database import run_db_check
 
 logging.basicConfig(
     level=logging.INFO,

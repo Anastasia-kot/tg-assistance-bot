@@ -1,5 +1,5 @@
 from auth import is_allowed_user
-from testdb import list_tasks
+from database import list_tasks
 
 def register_button_handlers(bot):
     @bot.message_handler(content_types=["text"])

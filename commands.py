@@ -1,6 +1,6 @@
 from telebot import types
 from auth import is_allowed_user
-from testdb import add_task, list_tasks
+from database import add_task, list_tasks
 
 def register_command_handlers(bot):
     @bot.message_handler(commands=["start"])

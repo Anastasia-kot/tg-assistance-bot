@@ -1,5 +1,6 @@
 import logging
 import os
+from contextlib import contextmanager
 
 import psycopg
 from dotenv import load_dotenv
@@ -9,6 +10,7 @@ logger = logging.getLogger("database")
 load_dotenv()
 
 
+@contextmanager
 def get_connection():
     pg_host = os.getenv("PGHOST")
     pg_database = os.getenv("PGDATABASE")
@@ -25,5 +27,9 @@ def get_connection():
     }
 
     logger.info("opening db connection: %s", {**cfg, "password": "***"})
-    return psycopg.connect(**cfg)
+    conn = psycopg.connect(**cfg)
+    try:
+        yield conn
+    finally:
+        conn.close()
 

@@ -13,7 +13,7 @@ def ensure_tasks_table(conn):
                 id BIGSERIAL PRIMARY KEY,
                 text TEXT NOT NULL,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-                execute_at TIMESTAMPTZ
+                execute_at TIMESTAMPTZ,
                 completed BOOLEAN
             );
             """

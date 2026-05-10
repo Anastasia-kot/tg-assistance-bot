@@ -19,7 +19,7 @@ def ensure_tasks_table(conn):
             """
         )
         cur.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS execute_at TIMESTAMPTZ;")
-        cur.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS completed BOOLEAN;")
+        cur.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS completed BOOLEAN DEFAULT FALSE;")
     conn.commit()
 
 
@@ -28,6 +28,11 @@ def check_connection():
         with conn.cursor() as cur:
             cur.execute("SELECT current_user, current_database(), version();")
             user, db, version = cur.fetchone()
-            logger.info("Connected as: %s", user, "Database: %s", db, "Version: %s", version)
+            logger.info(
+                "Connected as: %s, database: %s, version: %s",
+                user,
+                db,
+                version,
+            )
             return True
 

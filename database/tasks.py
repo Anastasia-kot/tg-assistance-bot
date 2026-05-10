@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 from typing import Optional
 
 from .init import get_connection
 from .schema import ensure_tasks_table
+
+logger = logging.getLogger(__name__)
 
 
 def insert_task(task_text: str, execute_at: Optional[str] = None) -> int:
@@ -11,6 +14,11 @@ def insert_task(task_text: str, execute_at: Optional[str] = None) -> int:
     if not normalized_text:
         raise ValueError("Task text is empty.")
 
+    logger.info(
+        "insert_task: inserting task text_len=%s execute_at=%s",
+        len(normalized_text),
+        execute_at,
+    )
     with get_connection() as conn:
         ensure_tasks_table(conn)
         with conn.cursor() as cur:
@@ -20,22 +28,29 @@ def insert_task(task_text: str, execute_at: Optional[str] = None) -> int:
             )
             row = cur.fetchone()
             conn.commit()
-            return int(row[0])
+            task_id = int(row[0])
+            logger.info("insert_task: created task id=%s", task_id)
+            return task_id
 
 
 def delete_tasks_by_ids(task_ids: list[int]) -> None:
     if not task_ids:
+        logger.info("delete_tasks_by_ids: skipped (empty id list)")
         return
+    logger.info("delete_tasks_by_ids: deleting ids=%s", task_ids)
     with get_connection() as conn:
         ensure_tasks_table(conn)
         with conn.cursor() as cur:
             cur.execute("DELETE FROM tasks WHERE id = ANY(%s);", (task_ids,))
         conn.commit()
+    logger.info("delete_tasks_by_ids: done ids=%s", task_ids)
 
 
 def complete_tasks_by_ids(task_ids: list[int]) -> None:
     if not task_ids:
+        logger.info("complete_tasks_by_ids: skipped (empty id list)")
         return
+    logger.info("complete_tasks_by_ids: completing ids=%s", task_ids)
     with get_connection() as conn:
         ensure_tasks_table(conn)
         with conn.cursor() as cur:
@@ -44,6 +59,7 @@ def complete_tasks_by_ids(task_ids: list[int]) -> None:
                 (task_ids,),
             )
         conn.commit()
+    logger.info("complete_tasks_by_ids: done ids=%s", task_ids)
 
 
 def _sort_key_tasks_display_order(row) -> tuple[int, object]:
@@ -53,6 +69,7 @@ def _sort_key_tasks_display_order(row) -> tuple[int, object]:
 
 
 def select_tasks(limit: int = 50) -> list[tuple[int, str]]:
+    logger.info("select_tasks: limit=%s", limit)
     with get_connection() as conn:
         ensure_tasks_table(conn)
         with conn.cursor() as cur:
@@ -68,11 +85,29 @@ def select_tasks(limit: int = 50) -> list[tuple[int, str]]:
             rows = list(cur.fetchall())
 
     rows.sort(key=_sort_key_tasks_display_order)
-    return [(int(r[0]), r[1]) for r in rows]
+    result = [(int(r[0]), r[1]) for r in rows]
+    logger.info("select_tasks: returned %s rows (limit=%s)", len(result), limit)
+    return result
 
 
 def get_task_id_by_display_index(display_index: int, limit: int = 50) -> int:
+    logger.info(
+        "get_task_id_by_display_index: display_index=%s limit=%s",
+        display_index,
+        limit,
+    )
     rows = select_tasks(limit=limit)
     if display_index < 1 or display_index > len(rows):
+        logger.warning(
+            "get_task_id_by_display_index: invalid index display_index=%s row_count=%s",
+            display_index,
+            len(rows),
+        )
         raise ValueError("Нет задачи с таким номером.")
-    return rows[display_index - 1][0]
+    task_id = rows[display_index - 1][0]
+    logger.info(
+        "get_task_id_by_display_index: display_index=%s -> task_id=%s",
+        display_index,
+        task_id,
+    )
+    return task_id

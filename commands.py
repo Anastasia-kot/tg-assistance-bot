@@ -1,6 +1,17 @@
+from datetime import datetime
+
 from auth import require_allowed_user
 from database import add_task, complete_tasks, delete_tasks, get_id_by_index, list_tasks
 from parsers import parse_add_command, parse_index_numbers
+
+
+def _format_execute_at(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, datetime):
+        return value.strftime("%d.%m.%Y %H:%M")
+    return str(value)
+
 
 def print_list_tasks(bot, message):
     rows = list_tasks()
@@ -8,7 +19,21 @@ def print_list_tasks(bot, message):
         bot.send_message(message.chat.id, text="Список задач пуст.")
         return
 
-    lines = [f"{idx}. {text}" for idx, (_, text) in enumerate(rows, start=1)]
+    done_mark = "✅"
+    block_sep = "───────────────"
+    lines: list[str] = []
+    pending_block_started = False
+    for idx, (_, text, is_completed, execute_at) in enumerate(rows, start=1):
+        if not is_completed and not pending_block_started:
+            pending_block_started = True
+            if lines:
+                lines.append(block_sep)
+        due = _format_execute_at(execute_at)
+        due_part = f" ({due})" if due else ""
+        lines.append(
+            f"{idx}. {text}{due_part}" + (f" {done_mark}" if is_completed else "")
+        )
+
     bot.send_message(message.chat.id, text="\n".join(lines))
 
 

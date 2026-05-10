@@ -63,19 +63,19 @@ def complete_tasks_by_ids(task_ids: list[int]) -> None:
 
 
 def _sort_key_tasks_display_order(row) -> tuple[int, object]:
-    _task_id, _text, is_completed, created_at = row
+    _task_id, _text, is_completed, created_at, _execute_at = row
     completed_first_rank = 0 if is_completed else 1
     return (completed_first_rank, created_at)
 
 
-def select_tasks(limit: int = 50) -> list[tuple[int, str]]:
+def select_tasks(limit: int = 50) -> list[tuple[int, str, bool, object]]:
     logger.info("select_tasks: limit=%s", limit)
     with get_connection() as conn:
         ensure_tasks_table(conn)
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, text, COALESCE(completed, FALSE), created_at
+                SELECT id, text, COALESCE(completed, FALSE), created_at, execute_at
                 FROM tasks
                 ORDER BY id DESC
                 LIMIT %s;
@@ -85,7 +85,7 @@ def select_tasks(limit: int = 50) -> list[tuple[int, str]]:
             rows = list(cur.fetchall())
 
     rows.sort(key=_sort_key_tasks_display_order)
-    result = [(int(r[0]), r[1]) for r in rows]
+    result = [(int(r[0]), r[1], bool(r[2]), r[4]) for r in rows]
     logger.info("select_tasks: returned %s rows (limit=%s)", len(result), limit)
     return result
 

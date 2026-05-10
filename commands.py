@@ -1,25 +1,8 @@
-import re
-
 from telebot import types
 
-from auth import is_allowed_user
+from auth import require_allowed_user
 from database import add_task, complete_tasks, delete_tasks, get_id_by_index, list_tasks
-
-
-def parse_add_command(text: str) -> tuple[str, str | None]:
-    payload = text[len("/add") :].strip()
-    marker = "execute_at"
-    if marker in payload:
-        left, _, right = payload.partition(marker)
-        task_text = left.strip()
-        task_date = right.strip() or None
-        return task_text, task_date
-    return payload, None
-
-
-def parse_index_numbers(text: str) -> list[int]:
-    return [int(x) for x in re.findall(r"\d+", text)]
-
+from parsers import parse_add_command, parse_index_numbers
 
 def print_list_tasks(bot, message):
     rows = list_tasks()
@@ -32,45 +15,29 @@ def print_list_tasks(bot, message):
 
 
 def register_command_handlers(bot):
-    def require_allowed_user(handler):
-        def wrapped(message):
-            if not is_allowed_user(message):
-                bot.send_message(message.chat.id, text="Нет доступа.")
-                return
-            return handler(message)
-
-        return wrapped
-
     @bot.message_handler(commands=["start"])
-    @require_allowed_user
+    @require_allowed_user(bot)
     def start_message(message):
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        keyboard_buttons = [
-            types.KeyboardButton("Добавить задачу"),
-            types.KeyboardButton("Удалить задачу"),
-            types.KeyboardButton("Список задач"),
-        ]
-        markup.add(*keyboard_buttons)
-
         bot.send_message(
             message.chat.id,
             text="Привет, {0.first_name} \n👇 Воспользуйся кнопками".format(
                 message.from_user
             ),
-            reply_markup=markup,
+            // добавление кнопок
+            # reply_markup=build_main_reply_keyboard(),
         )
 
     @bot.message_handler(
         func=lambda m: isinstance(m.text, str) and m.text.startswith("/list")
     )
-    @require_allowed_user
+    @require_allowed_user(bot)
     def list_tasks_message(message):
         print_list_tasks(bot, message)
 
     @bot.message_handler(
         func=lambda m: isinstance(m.text, str) and m.text.startswith("/add")
     )
-    @require_allowed_user
+    @require_allowed_user(bot)
     def add_task_message(message):
         task_text, task_date = parse_add_command(message.text)
         if not task_text:
@@ -87,7 +54,7 @@ def register_command_handlers(bot):
     @bot.message_handler(
         func=lambda m: isinstance(m.text, str) and m.text.startswith("/delete")
     )
-    @require_allowed_user
+    @require_allowed_user(bot)
     def delete_task_message(message):
         raw = message.text[len("/delete") :].strip()
         indices = parse_index_numbers(raw)
@@ -107,7 +74,7 @@ def register_command_handlers(bot):
     @bot.message_handler(
         func=lambda m: isinstance(m.text, str) and m.text.startswith("/complete")
     )
-    @require_allowed_user
+    @require_allowed_user(bot)
     def complete_task_message(message):
         raw = message.text[len("/complete") :].strip()
         indices = parse_index_numbers(raw)

@@ -1,19 +1,26 @@
-from auth import is_allowed_user
-from commands import parse_index_numbers, parse_add_command, print_list_tasks
-from database import add_task, delete_tasks, get_id_by_index
+from auth import require_allowed_user
+from commands import print_list_tasks
 
+from database import add_task, delete_tasks, get_id_by_index
+from parsers import parse_add_command, parse_index_numbers
+
+
+BTN_ADD_TASK = "Добавить задачу"
+BTN_DELETE_TASK = "Удалить задачу"
+BTN_LIST_TASKS = "Список задач"
+
+
+def build_main_reply_keyboard() -> types.ReplyKeyboardMarkup:
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add(
+        types.KeyboardButton(BTN_ADD_TASK),
+        types.KeyboardButton(BTN_DELETE_TASK),
+        types.KeyboardButton(BTN_LIST_TASKS),
+    )
+    return markup
 
 def register_button_handlers(bot):
-    def require_allowed_user(handler):
-        def wrapped(message):
-            if not is_allowed_user(message):
-                bot.send_message(message.chat.id, text="Нет доступа.")
-                return
-            return handler(message)
-
-        return wrapped
-
-    @require_allowed_user
+    @require_allowed_user(bot)
     def handle_add_step(next_message):
         task_text, task_date = parse_add_command(f"/add {next_message.text or ''}")
         if not task_text:
@@ -23,7 +30,7 @@ def register_button_handlers(bot):
         bot.send_message(next_message.chat.id, text="Задача добавлена.")
         print_list_tasks(bot, next_message)
 
-    @require_allowed_user
+    @require_allowed_user(bot)
     def handle_delete_step(next_message):
         raw = (next_message.text or "").strip()
         indices = parse_index_numbers(raw)
@@ -39,7 +46,7 @@ def register_button_handlers(bot):
         bot.send_message(next_message.chat.id, text="Задачи удалены.")
         print_list_tasks(bot, next_message)
 
-    @require_allowed_user
+    @require_allowed_user(bot)
     def prompt_add_task(message):
         bot.send_message(
             message.chat.id,
@@ -48,7 +55,7 @@ def register_button_handlers(bot):
         )
         bot.register_next_step_handler(message, handle_add_step)
 
-    @require_allowed_user
+    @require_allowed_user(bot)
     def prompt_delete_task(message):
         bot.send_message(
             message.chat.id,
@@ -56,21 +63,21 @@ def register_button_handlers(bot):
         )
         bot.register_next_step_handler(message, handle_delete_step)
 
-    @require_allowed_user
+    @require_allowed_user(bot)
     def prompt_list_tasks(message):
         print_list_tasks(bot, message)
 
     @bot.message_handler(content_types=["text"])
     def buttons(message):
-        if message.text == "Добавить задачу":
+        if message.text == BTN_ADD_TASK:
             prompt_add_task(message)
             return
 
-        if message.text == "Удалить задачу":
+        if message.text == BTN_DELETE_TASK:
             prompt_delete_task(message)
             return
 
-        if message.text == "Список задач":
+        if message.text == BTN_LIST_TASKS:
             prompt_list_tasks(message)
             return
 

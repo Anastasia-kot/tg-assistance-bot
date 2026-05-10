@@ -17,6 +17,7 @@ logger.info("file loaded")
 load_dotenv()
 bot = telebot.TeleBot(os.getenv("BOT_TOKEN"))
 
+// подключение к базе данных
 run_db_check()
 
 register_command_handlers(bot)

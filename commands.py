@@ -23,7 +23,7 @@ def register_command_handlers(bot):
             text="Привет, {0.first_name} \n👇 Воспользуйся кнопками".format(
                 message.from_user
             ),
-            // добавление кнопок
+            # добавление кнопок
             # reply_markup=build_main_reply_keyboard(),
         )
 

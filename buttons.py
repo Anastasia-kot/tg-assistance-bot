@@ -1,3 +1,5 @@
+from telebot import types
+
 from auth import require_allowed_user
 from commands import print_list_tasks
 

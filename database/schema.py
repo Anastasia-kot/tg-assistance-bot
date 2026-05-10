@@ -27,6 +27,11 @@ def check_connection():
         with conn.cursor() as cur:
             cur.execute("SELECT current_user, current_database(), version();")
             user, db, version = cur.fetchone()
-            logger.info("Connected as: %s", user, "Database: %s", db, "Version: %s", version)
+            logger.info(
+                "Connected as: %s, database: %s, version: %s",
+                user,
+                db,
+                version,
+            )
             return True
 

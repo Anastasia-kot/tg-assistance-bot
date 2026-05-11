@@ -7,11 +7,10 @@ from ui import print_list_tasks
 
 def register_command_handlers(bot):
     @bot.message_handler(commands=["start"])
-    @require_allowed_user(bot)
     def start_message(message):
         bot.send_message(
             message.chat.id,
-            text="Привет, {0.first_name} \nТест 3".format(
+            text="Привет, {0.first_name} \nТест 4".format(
                 message.from_user
             ),
             # добавление кнопок

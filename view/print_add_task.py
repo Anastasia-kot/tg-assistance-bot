@@ -2,15 +2,11 @@ import uuid
 
 from telebot import types
 
+from model.temporary import set_pending_task
+
 
 CB_ADD_TASK_YES_PREFIX = "add_task:yes:"
 CB_ADD_TASK_NO_PREFIX = "add_task:no:"
-
-_pending_add_tasks: dict[str, dict] = {}
-
-
-def pop_pending_add_task(token: str) -> dict | None:
-    return _pending_add_tasks.pop(token, None)
 
 
 def print_add_task(bot, message, task: dict) -> None:
@@ -18,10 +14,13 @@ def print_add_task(bot, message, task: dict) -> None:
     execute_at = (task or {}).get("time", "")
 
     token = uuid.uuid4().hex[:12]
-    _pending_add_tasks[token] = {
-        "description": description,
-        "time": execute_at,
-    }
+    set_pending_task(
+        token,
+        {
+            "description": description,
+            "time": execute_at,
+        },
+    )
 
     markup = types.InlineKeyboardMarkup()
     markup.row(

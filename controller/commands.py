@@ -2,6 +2,7 @@ import json
 
 from auth import require_allowed_user
 from model import add_task, complete_tasks, delete_tasks, get_id_by_index, list_tasks
+from model.temporary import pop_pending_task
 
 from .ai import get_ai_response
 from .buttons import build_main_reply_keyboard
@@ -9,7 +10,6 @@ from .parsers import parse_add_command, parse_index_numbers
 from view import (
     CB_ADD_TASK_NO_PREFIX,
     CB_ADD_TASK_YES_PREFIX,
-    pop_pending_add_task,
     print_add_task,
     print_list_tasks,
 )
@@ -117,9 +117,10 @@ def register_command_handlers(bot):
         func=lambda c: isinstance(c.data, str)
         and c.data.startswith(CB_ADD_TASK_YES_PREFIX)
     )
+    @require_allowed_user(bot)
     def add_task_confirm(call):
         token = call.data[len(CB_ADD_TASK_YES_PREFIX) :]
-        pending = pop_pending_add_task(token)
+        pending = pop_pending_task(token)
         if not pending:
             bot.answer_callback_query(call.id, text="Запрос устарел")
             return
@@ -137,9 +138,10 @@ def register_command_handlers(bot):
         func=lambda c: isinstance(c.data, str)
         and c.data.startswith(CB_ADD_TASK_NO_PREFIX)
     )
+    @require_allowed_user(bot)
     def add_task_cancel(call):
         token = call.data[len(CB_ADD_TASK_NO_PREFIX) :]
-        pop_pending_add_task(token)
+        pop_pending_task(token)
         bot.answer_callback_query(call.id, text="Отменено")
         bot.edit_message_text(
             chat_id=call.message.chat.id,

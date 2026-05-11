@@ -4,13 +4,15 @@ from database import add_task, complete_tasks, delete_tasks, get_id_by_index, li
 from parsers import parse_add_command, parse_index_numbers
 from ui import print_list_tasks
 
+from version import VERSION
+
 
 def register_command_handlers(bot):
     @bot.message_handler(commands=["start"])
     def start_message(message):
         bot.send_message(
             message.chat.id,
-            text="Привет, {0.first_name} \nТест 5".format(
+            text="Привет, {0.first_name} \nВерсия {version}".format(
                 message.from_user
             ),
             # добавление кнопок

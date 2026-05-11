@@ -1,9 +1,9 @@
 from telebot import types
 
 from auth import require_allowed_user
-from commands import print_list_tasks
+from ui import print_list_tasks
 
-from database import add_task, delete_tasks, get_id_by_index
+from database import add_task, delete_tasks, get_id_by_index, list_tasks
 from parsers import parse_add_command, parse_index_numbers
 
 
@@ -30,7 +30,7 @@ def register_button_handlers(bot):
             return
         add_task(task_text, task_date)
         bot.send_message(next_message.chat.id, text="Задача добавлена.")
-        print_list_tasks(bot, next_message)
+        print_list_tasks(bot, next_message, list_tasks())
 
     @require_allowed_user(bot)
     def handle_delete_step(next_message):
@@ -46,7 +46,7 @@ def register_button_handlers(bot):
             return
         delete_tasks(task_ids)
         bot.send_message(next_message.chat.id, text="Задачи удалены.")
-        print_list_tasks(bot, next_message)
+        print_list_tasks(bot, next_message, list_tasks())
 
     @require_allowed_user(bot)
     def prompt_add_task(message):
@@ -67,7 +67,7 @@ def register_button_handlers(bot):
 
     @require_allowed_user(bot)
     def prompt_list_tasks(message):
-        print_list_tasks(bot, message)
+        print_list_tasks(bot, message, list_tasks())
 
     @bot.message_handler(content_types=["text"])
     def buttons(message):

@@ -41,9 +41,11 @@ giga_connection = GigaChat(
 
 
 def get_ai_response(user_message: str) -> str:
-    chat = Chat([
-        Messages(role=MessagesRole.SYSTEM, content=SYSTEM_PROMPT),
-        Messages(role=MessagesRole.USER, content=user_message),
-    ])
-    response = giga_connection.chat(messages)
+    chat = Chat(
+        messages=[
+            Messages(role=MessagesRole.SYSTEM, content=SYSTEM_PROMPT),
+            Messages(role=MessagesRole.USER, content=user_message),
+        ]
+    )
+    response = giga_connection.chat(chat)
     return response.choices[0].message.content

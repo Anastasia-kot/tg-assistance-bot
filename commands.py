@@ -11,7 +11,7 @@ def register_command_handlers(bot):
     def start_message(message):
         bot.send_message(
             message.chat.id,
-            text="Привет, {0.first_name} \nТест 2".format(
+            text="Привет, {0.first_name} \nТест 3".format(
                 message.from_user
             ),
             # добавление кнопок

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import logging
 
 from telebot.util import extract_arguments
 
@@ -12,6 +13,8 @@ from .parsers import parse_add_command, parse_index_numbers
 from view import print_list_tasks
 
 from version import VERSION
+
+logger = logging.getLogger(__name__)
 
 
 def _run_bulk_task_action_by_display_indices(
@@ -39,6 +42,9 @@ def raw_command_handlers(bot):
     # /start
     @bot.message_handler(commands=["start"])
     def start_message(message):
+        user = getattr(message, "from_user", None)
+        user_payload = getattr(user, "__dict__", None) if user is not None else None
+        logger.info("start command from user: %r", user_payload)
         bot.send_message(
             message.chat.id,
             text=f"Привет, {message.from_user.first_name}!\nВерсия {VERSION}.",

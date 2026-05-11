@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 
 from auth import require_allowed_user
@@ -15,6 +17,36 @@ from view import (
 )
 
 from version import VERSION
+
+
+def _normalize_ai_type(raw) -> str | None:
+    if raw is None or not isinstance(raw, str):
+        return None
+    key = raw.strip().lower()
+    return {
+        "/add": "/add",
+        "add": "/add",
+        "/delete": "/delete",
+        "delete": "/delete",
+        "/complete": "/complete",
+        "complete": "/complete",
+        "/list": "/list",
+        "list": "/list",
+    }.get(key)
+
+
+def _coerce_display_indices(ids_raw) -> list[int]:
+    if ids_raw is None or not isinstance(ids_raw, list):
+        return []
+    numbers: list[int] = []
+    for item in ids_raw:
+        try:
+            n = int(item)
+        except (TypeError, ValueError):
+            continue
+        if n >= 1:
+            numbers.append(n)
+    return sorted(set(numbers))
 
 
 def register_command_handlers(bot):
@@ -111,7 +143,56 @@ def register_command_handlers(bot):
             bot.send_message(message.chat.id, text=answer)
             return
 
-        print_add_task(bot, message, payload)
+        action = _normalize_ai_type(payload.get("type"))
+        if action is None and "description" in payload:
+            action = "/add"
+
+        if action == "/list":
+            print_list_tasks(bot, message, list_tasks())
+            return
+
+        if action == "/delete":
+            indices = _coerce_display_indices(payload.get("ids"))
+            if not indices:
+                bot.send_message(
+                    message.chat.id,
+                    text="Не вижу номеров задач. Открой список (/list) и укажи номера, например: удали 1 и 3",
+                )
+                return
+            try:
+                task_ids = [get_id_by_index(i) for i in indices]
+            except ValueError as exc:
+                bot.send_message(message.chat.id, text=str(exc))
+                return
+            delete_tasks(task_ids)
+            print_list_tasks(bot, message, list_tasks())
+            return
+
+        if action == "/complete":
+            indices = _coerce_display_indices(payload.get("ids"))
+            if not indices:
+                bot.send_message(
+                    message.chat.id,
+                    text="Не вижу номеров задач. Открой список (/list) и укажи номера, например: заверши 2",
+                )
+                return
+            try:
+                task_ids = [get_id_by_index(i) for i in indices]
+            except ValueError as exc:
+                bot.send_message(message.chat.id, text=str(exc))
+                return
+            complete_tasks(task_ids)
+            print_list_tasks(bot, message, list_tasks())
+            return
+
+        if action == "/add":
+            print_add_task(bot, message, payload)
+            return
+
+        bot.send_message(
+            message.chat.id,
+            text="Не удалось разобрать ответ ассистента. Попробуй переформулировать или используй команды /list, /add, /delete, /complete.",
+        )
 
     @bot.callback_query_handler(
         func=lambda c: isinstance(c.data, str)

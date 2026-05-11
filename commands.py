@@ -1,5 +1,5 @@
 from auth import require_allowed_user
-from ai import chat as ai_chat
+from ai import get_ai_response
 from database import add_task, complete_tasks, delete_tasks, get_id_by_index, list_tasks
 from parsers import parse_add_command, parse_index_numbers
 from ui import print_list_tasks
@@ -11,7 +11,7 @@ def register_command_handlers(bot):
     def start_message(message):
         bot.send_message(
             message.chat.id,
-            text="Привет, {0.first_name} \nТест 1".format(
+            text="Привет, {0.first_name} \nТест 2".format(
                 message.from_user
             ),
             # добавление кнопок
@@ -87,7 +87,7 @@ def register_command_handlers(bot):
     def ai_message(message):
 
         try:
-            answer = ai_chat(message.text)
+            answer = get_ai_response(message.text)
         except Exception as exc:
             bot.send_message(message.chat.id, text=f"Ошибка AI: {exc}")
             return

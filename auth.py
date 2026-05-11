@@ -1,5 +1,5 @@
 ALLOWED_TG_USERS = {"AnastasiaN11", "ka_borisov"}
-ALLOWED_TG_USER_IDS: set[int] = set()
+ALLOWED_TG_USER_IDS={1601552168}
 
 
 def is_allowed_user(message):

@@ -1,12 +1,16 @@
+import json
+
 from auth import require_allowed_user
 from model import add_task, complete_tasks, delete_tasks, get_id_by_index, list_tasks
 
 from .ai import get_ai_response
+from .buttons import build_main_reply_keyboard
 from .parsers import parse_add_command, parse_index_numbers
 from view import (
     CB_ADD_TASK_NO_PREFIX,
     CB_ADD_TASK_YES_PREFIX,
     pop_pending_add_task,
+    print_add_task,
     print_list_tasks,
 )
 
@@ -20,7 +24,7 @@ def register_command_handlers(bot):
             message.chat.id,
             text=f"Привет, {message.from_user.first_name} \nВерсия {VERSION}",
             # добавление кнопок
-            # reply_markup=build_main_reply_keyboard(),
+            reply_markup=build_main_reply_keyboard(),
         )
 
     @bot.message_handler(
@@ -97,7 +101,17 @@ def register_command_handlers(bot):
             bot.send_message(message.chat.id, text=f"Ошибка AI: {exc}")
             return
 
-        print_add_task(bot, message, json.loads(answer))
+        try:
+            payload = json.loads(answer)
+        except json.JSONDecodeError:
+            bot.send_message(message.chat.id, text=answer)
+            return
+
+        if not isinstance(payload, dict):
+            bot.send_message(message.chat.id, text=answer)
+            return
+
+        print_add_task(bot, message, payload)
 
     @bot.callback_query_handler(
         func=lambda c: isinstance(c.data, str)

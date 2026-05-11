@@ -10,6 +10,7 @@ from controller import (
     register_command_handlers,
 )
 from model import run_db_check
+from model.scheduler import start_scheduler
 from version import VERSION
 
 logging.basicConfig(
@@ -23,6 +24,8 @@ bot = telebot.TeleBot(os.getenv("BOT_TOKEN"))
 
 # подключение к базе данных
 run_db_check()
+
+start_scheduler(bot)
 
 raw_command_handlers(bot)
 register_command_handlers(bot)

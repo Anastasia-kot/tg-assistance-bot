@@ -6,7 +6,8 @@ from .tasks import (
     delete_tasks_by_ids,
     get_task_id_by_display_index,
     insert_task,
-    select_tasks,
+    select_today_tasks,
+    select_tomorrow_tasks,
 )
 
 
@@ -15,7 +16,11 @@ def run_db_check():
 
 
 def list_tasks(limit: int = 50):
-    return select_tasks(limit=limit)
+    return select_today_tasks(limit=limit)
+
+
+def list_tomorrow_tasks(limit: int = 50):
+    return select_tomorrow_tasks(limit=limit)
 
 
 def get_id_by_index(index: int):

@@ -5,7 +5,7 @@ import logging
 
 from telebot.util import extract_arguments
 
-from auth import require_allowed_user
+from auth import is_allowed_user, require_allowed_user
 from model import add_task, complete_tasks, delete_tasks, get_id_by_index, list_tasks
 
 from .buttons import build_main_reply_keyboard
@@ -51,6 +51,10 @@ def raw_command_handlers(bot):
             # добавление кнопок
             reply_markup=build_main_reply_keyboard(),
         )
+        if is_allowed_user(message):
+            from model.notifications import set_notification_chat_id
+
+            set_notification_chat_id(message.chat.id)
 
     # /list
     @bot.message_handler(commands=["list"])

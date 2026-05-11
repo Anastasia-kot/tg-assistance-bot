@@ -14,12 +14,14 @@ def ensure_tasks_table(conn):
                 text TEXT NOT NULL,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                 execute_at TIMESTAMPTZ,
-                completed BOOLEAN
+                completed BOOLEAN,
+                archived_at TIMESTAMPTZ
             );
             """
         )
         cur.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS execute_at TIMESTAMPTZ;")
         cur.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS completed BOOLEAN DEFAULT FALSE;")
+        cur.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;")
     conn.commit()
 
 

@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 from buttons import register_button_handlers
 from commands import register_command_handlers
-from database import run_db_check
+from model import run_db_check
 from version import VERSION
 
 logging.basicConfig(
@@ -23,5 +23,5 @@ run_db_check()
 register_command_handlers(bot)
 register_button_handlers(bot)
 
-logger.info("starting bot polling version: {version}", version=VERSION)
+logger.info(f"starting bot polling version: {VERSION}")
 bot.polling(none_stop=True, interval=0)

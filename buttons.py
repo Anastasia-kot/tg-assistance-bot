@@ -1,9 +1,9 @@
 from telebot import types
 
 from auth import require_allowed_user
-from ui import print_list_tasks
+from view import print_list_tasks
 
-from database import add_task, delete_tasks, get_id_by_index, list_tasks
+from model import add_task, delete_tasks, get_id_by_index, list_tasks
 from parsers import parse_add_command, parse_index_numbers
 
 

@@ -1,8 +1,8 @@
 from auth import require_allowed_user
 from ai import get_ai_response
-from database import add_task, complete_tasks, delete_tasks, get_id_by_index, list_tasks
+from model import add_task, complete_tasks, delete_tasks, get_id_by_index, list_tasks
 from parsers import parse_add_command, parse_index_numbers
-from ui import (
+from view import (
     CB_ADD_TASK_NO_PREFIX,
     CB_ADD_TASK_YES_PREFIX,
     pop_pending_add_task,

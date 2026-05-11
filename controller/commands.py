@@ -97,7 +97,7 @@ def register_command_handlers(bot):
             bot.send_message(message.chat.id, text=f"Ошибка AI: {exc}")
             return
 
-        bot.send_message(message.chat.id, text=answer)
+        print_add_task(bot, message, json.loads(answer))
 
     @bot.callback_query_handler(
         func=lambda c: isinstance(c.data, str)

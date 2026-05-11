@@ -15,8 +15,12 @@ def run_db_check():
     return check_connection()
 
 
-def list_tasks(limit: int = 50):
+def list_today_tasks(limit: int = 50):
     return select_today_tasks(limit=limit)
+
+
+def list_tasks(limit: int = 50):
+    return list_today_tasks(limit=limit)
 
 
 def list_tomorrow_tasks(limit: int = 50):

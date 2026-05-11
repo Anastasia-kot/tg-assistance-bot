@@ -25,5 +25,7 @@ def print_add_task(bot, message, task: dict) -> None:
         ),
     )
 
-    text = f"Добавить новую задачу «{description}» со сроком {execute_at}?"
+
+    execute_at_suffix = f" со сроком {execute_at}" if execute_at else ""
+    text = f"Добавить новую задачу «{description}»{execute_at_suffix}?"
     bot.send_message(message.chat.id, text=text, reply_markup=markup)

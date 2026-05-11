@@ -1,4 +1,7 @@
+import uuid
 from datetime import datetime
+
+from telebot import types
 
 
 def _format_execute_at(value) -> str:
@@ -29,3 +32,34 @@ def print_list_tasks(bot, message, rows) -> None:
 
     bot.send_message(message.chat.id, text="\n".join(lines))
 
+
+CB_ADD_TASK_YES_PREFIX = "add_task:yes:"
+CB_ADD_TASK_NO_PREFIX = "add_task:no:"
+
+_pending_add_tasks: dict[str, dict] = {}
+
+def pop_pending_add_task(token: str) -> dict | None:
+    return _pending_add_tasks.pop(token, None)
+
+def print_add_task(bot, message, task: dict) -> None:
+    description = (task or {}).get("description", "")
+    execute_at = (task or {}).get("time", "")
+
+    token = uuid.uuid4().hex[:12]
+    _pending_add_tasks[token] = {
+        "description": description,
+        "time": execute_at,
+    }
+
+    markup = types.InlineKeyboardMarkup()
+    markup.row(
+        types.InlineKeyboardButton(
+            "Да", callback_data=f"{CB_ADD_TASK_YES_PREFIX}{token}"
+        ),
+        types.InlineKeyboardButton(
+            "Нет", callback_data=f"{CB_ADD_TASK_NO_PREFIX}{token}"
+        ),
+    )
+
+    text = f"Добавить новую задачу «{description}» со сроком {execute_at}?"
+    bot.send_message(message.chat.id, text=text, reply_markup=markup)

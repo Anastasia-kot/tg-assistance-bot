@@ -3,8 +3,7 @@ import telebot
 import os
 from dotenv import load_dotenv
 
-from buttons import register_button_handlers
-from commands import register_command_handlers
+from controller import register_button_handlers, register_command_handlers
 from model import run_db_check
 from version import VERSION
 

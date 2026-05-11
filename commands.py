@@ -17,9 +17,7 @@ def register_command_handlers(bot):
     def start_message(message):
         bot.send_message(
             message.chat.id,
-            text="Привет, {0.first_name} \nВерсия {version}".format(
-                message.from_user
-            ),
+            text=f"Привет, {message.from_user.first_name} \nВерсия {VERSION}",
             # добавление кнопок
             # reply_markup=build_main_reply_keyboard(),
         )

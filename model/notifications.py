@@ -1,6 +1,6 @@
 import logging
 
-from model import list_today_tasks, list_tomorrow_tasks
+from model.tasks import select_today_tasks, select_tomorrow_tasks
 from view.print_list_tasks import print_list_tasks
 
 
@@ -37,7 +37,7 @@ def notify_tomorrow_tasks() -> None:
         )
         return
 
-    tasks = list_tomorrow_tasks()
+    tasks = select_tomorrow_tasks()
     if not tasks:
         return
 
@@ -53,7 +53,7 @@ def notify_today_tasks() -> None:
         )
         return
 
-    tasks = list_today_tasks()
+    tasks = select_today_tasks()
     if not tasks:
         return
 

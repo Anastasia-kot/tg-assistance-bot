@@ -8,7 +8,7 @@ from telebot.util import extract_arguments
 from auth import is_allowed_user, require_allowed_user
 from model import add_task, complete_tasks, delete_tasks, get_id_by_index, list_tasks
 
-from .buttons import build_main_reply_keyboard
+from .buttons import BTN_LIST_TASKS, build_main_reply_keyboard
 from .parsers import parse_add_command, parse_index_numbers
 from view import print_list_tasks
 
@@ -45,10 +45,15 @@ def raw_command_handlers(bot):
         user = getattr(message, "from_user", None)
         user_payload = getattr(user, "__dict__", None) if user is not None else None
         logger.info("start command from user: %r", user_payload)
+        start_hint = (
+            f"Привет, {message.from_user.first_name}! Версия приложения: {VERSION}.\n\n"
+            f"Кнопка «{BTN_LIST_TASKS}» выведет список задач.\n Добавление задачи: голосовым вводом или напечатать в чат в свободной форме\n"
+            "Удаление задачи: голосовым вводом или напечатать номера из списка задач\n"
+            "Отметка выполненными: голосовым вводом или напечатать номера из списка задач\n"
+        )
         bot.send_message(
             message.chat.id,
-            text=f"Привет, {message.from_user.first_name}!\nВерсия {VERSION}.",
-            # добавление кнопок
+            text=start_hint,
             reply_markup=build_main_reply_keyboard(),
         )
         if is_allowed_user(message):

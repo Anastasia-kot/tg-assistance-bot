@@ -1,4 +1,4 @@
-from gigachat import GigaChat
+from gigachat import GigaChat, Chat 
 from gigachat.models import Messages, MessagesRole
 import os
 from dotenv import load_dotenv
@@ -40,10 +40,10 @@ giga_connection = GigaChat(
 )
 
 
-def chat(user_message: str) -> str:
-    messages = [
+def get_ai_response(user_message: str) -> str:
+    chat = Chat([
         Messages(role=MessagesRole.SYSTEM, content=SYSTEM_PROMPT),
         Messages(role=MessagesRole.USER, content=user_message),
-    ]
+    ])
     response = giga_connection.chat(messages)
     return response.choices[0].message.content

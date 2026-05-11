@@ -52,7 +52,7 @@ SYSTEM_PROMPT = """Ты — ассистент по задачам для юри
 
 giga_connection = GigaChat(
     credentials=os.getenv("GIGA_API_KEY"),
-    # после окончния разработки поставить значение по умолчанию true
+    # после окончания разработки поставить значение по умолчанию true
     verify_ssl_certs=False,
 )
 

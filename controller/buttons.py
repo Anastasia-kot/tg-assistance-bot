@@ -12,6 +12,7 @@ def build_main_reply_keyboard() -> types.ReplyKeyboardMarkup:
     markup.add(types.KeyboardButton(BTN_LIST_TASKS))
     return markup
 
+
 def register_button_handlers(bot):
 
     @require_allowed_user(bot)
@@ -26,5 +27,5 @@ def register_button_handlers(bot):
 
         bot.send_message(
             message.chat.id,
-            text="Я могу отвечать только на нажатие кнопок",
+            text="Я могу отвечать только на нажатие кнопок.",
         )

@@ -26,9 +26,9 @@ def add_task(task_text: str, execute_at: Optional[str] = None) -> int:
     return insert_task(task_text, execute_at)
 
 
-def delete_tasks(tasks_ids: list[int]):
-    return delete_tasks_by_ids(tasks_ids)
+def delete_tasks(task_ids: list[int]):
+    return delete_tasks_by_ids(task_ids)
 
 
-def complete_tasks(tasks_ids: list[int]):
-    return complete_tasks_by_ids(tasks_ids)
+def complete_tasks(task_ids: list[int]):
+    return complete_tasks_by_ids(task_ids)

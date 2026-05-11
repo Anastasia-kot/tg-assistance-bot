@@ -1,8 +1,7 @@
-import uuid
-
 from telebot import types
 
 from model.temporary import set_pending_task
+from view.utils import new_token
 
 
 CB_ADD_TASK_YES_PREFIX = "add_task:yes:"
@@ -13,14 +12,8 @@ def print_add_task(bot, message, task: dict) -> None:
     description = (task or {}).get("description", "")
     execute_at = (task or {}).get("time", "")
 
-    token = uuid.uuid4().hex[:12]
-    set_pending_task(
-        token,
-        {
-            "description": description,
-            "time": execute_at,
-        },
-    )
+    token = new_token()
+    set_pending_task(token, {"description": description, "time": execute_at})
 
     markup = types.InlineKeyboardMarkup()
     markup.row(

@@ -9,13 +9,11 @@ BTN_LIST_TOMORROW_TASKS = "Список задач на завтра"
 
 _REPLY_KEYBOARD_BUTTONS = frozenset({BTN_LIST_TASKS, BTN_LIST_TOMORROW_TASKS})
 
-
 def build_main_reply_keyboard() -> types.ReplyKeyboardMarkup:
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(types.KeyboardButton(BTN_LIST_TASKS))
     markup.add(types.KeyboardButton(BTN_LIST_TOMORROW_TASKS))
     return markup
-
 
 def register_button_handlers(bot):
 
@@ -29,8 +27,7 @@ def register_button_handlers(bot):
         if not rows:
             bot.send_message(message.chat.id, text="Задач на завтра нет.")
             return
-        bot.send_message(message.chat.id, text="Задачи на завтра:")
-        print_list_tasks(bot, message, rows)
+        print_list_tasks(bot, message, rows, title="Задачи на завтра:")
 
     @bot.message_handler(func=lambda message: message.text == BTN_LIST_TASKS)
     @require_allowed_user(bot)

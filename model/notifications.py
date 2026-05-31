@@ -41,9 +41,8 @@ def notify_tomorrow_tasks() -> None:
     if not tasks:
         return
 
-    _bot.send_message(chat_id=_notification_chat_id, text="Задачи на завтра:")
     message = _MessageWrapper(_notification_chat_id)
-    print_list_tasks(_bot, message, tasks)
+    print_list_tasks(_bot, message, tasks, title="Задачи на завтра:")
 
 
 def notify_today_tasks() -> None:

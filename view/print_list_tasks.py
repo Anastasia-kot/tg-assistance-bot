@@ -5,8 +5,12 @@ from view.get_list_tasks import (
 )
 
 
-def print_list_tasks(bot, message, rows) -> None:
-    bot.send_message(message.chat.id, text="\n".join(get_list_tasks(rows)))
+def print_list_tasks(bot, message, rows, title: str | None = None) -> None:
+    lines = get_list_tasks(rows)
+    text = "\n".join(lines)
+    if title:
+        text = f"{title}\n\n{text}"
+    bot.send_message(message.chat.id, text=text)
 
 
 def print_list_tasks_with_delete(bot, message, rows, ids: list[int]) -> None:

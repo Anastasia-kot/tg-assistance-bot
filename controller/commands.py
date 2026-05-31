@@ -6,7 +6,7 @@ from auth import require_allowed_user
 from model import get_id_by_index, list_tasks
 
 from .ai import get_ai_response
-from .buttons import BTN_LIST_TASKS
+from .buttons import BTN_LIST_TASKS, BTN_LIST_TOMORROW_TASKS
 from .parsers import is_freeform_user_text
 from view import (
     print_add_task,
@@ -17,7 +17,8 @@ from view import (
 _AI_EMPTY_IDS_HINT = "Не указаны номера задач."
 _AI_SUPPORTED_ACTIONS = frozenset({"/add", "/delete", "/complete"})
 _AI_UNRECOGNIZED_HINT = (
-    f"Не понял запрос. Для списка задач используй кнопку «{BTN_LIST_TASKS}» или команду /list."
+    f"Не понял запрос. Список на сегодня: «{BTN_LIST_TASKS}» или /list. "
+    f"На завтра: «{BTN_LIST_TOMORROW_TASKS}»."
 )
 
 

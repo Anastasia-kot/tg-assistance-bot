@@ -19,9 +19,9 @@ def is_freeform_user_text(message) -> bool:
     text = getattr(message, "text", None)
     if not isinstance(text, str) or text.startswith("/"):
         return False
-    from controller.buttons import BTN_LIST_TASKS
+    from controller.buttons import _REPLY_KEYBOARD_BUTTONS
 
-    return text != BTN_LIST_TASKS
+    return text not in _REPLY_KEYBOARD_BUTTONS
 
 
 def parse_add_command(text: str) -> tuple[str, str | None]:

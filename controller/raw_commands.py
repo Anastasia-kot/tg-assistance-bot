@@ -8,7 +8,11 @@ from telebot.util import extract_arguments
 from auth import is_allowed_user, require_allowed_user
 from model import add_task, complete_tasks, delete_tasks, get_id_by_index, list_tasks
 
-from .buttons import BTN_LIST_TASKS, build_main_reply_keyboard
+from .buttons import (
+    BTN_LIST_TASKS,
+    BTN_LIST_TOMORROW_TASKS,
+    build_main_reply_keyboard,
+)
 from .parsers import is_unknown_slash_command, parse_add_command, parse_index_numbers
 from view import print_list_tasks
 
@@ -50,7 +54,8 @@ def raw_command_handlers(bot):
             f"📦 Версия приложения: {VERSION}\n"
             "\n"
             "📋 Кнопки:\n"
-            f"• «{BTN_LIST_TASKS}» — показать список задач\n"
+            f"• «{BTN_LIST_TASKS}» — список задач на сегодня\n"
+            f"• «{BTN_LIST_TOMORROW_TASKS}» — список задач на завтра\n"
             "\n"
             "⌨️ Команды:\n"
             "• /list — показать список задач\n"
@@ -68,7 +73,8 @@ def raw_command_handlers(bot):
             "\n"
             "💬 Свободный текст:\n"
             "Можно написать в чат обычным языком — добавить, удалить или завершить задачи.\n"
-            f"Для просмотра списка используй кнопку «{BTN_LIST_TASKS}» или команду /list."
+            f"Сегодня: «{BTN_LIST_TASKS}» или /list. "
+            f"Завтра: «{BTN_LIST_TOMORROW_TASKS}»."
         )
         bot.send_message(
             message.chat.id,

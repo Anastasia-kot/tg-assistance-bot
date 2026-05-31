@@ -44,7 +44,13 @@ def register_callback_handlers(bot):
         if not pending:
             return
 
-        add_task(pending["description"], pending["time"] or None)
+        try:
+            add_task(pending["description"], pending["time"] or None)
+        except ValueError as exc:
+            bot.answer_callback_query(call.id, text=str(exc))
+            _edit_callback_message(bot, call, str(exc))
+            return
+
         bot.answer_callback_query(call.id, text="Добавлено")
         _edit_callback_message(bot, call, f"Добавлена задача: {pending['description']}.")
         print_list_tasks(bot, call.message, list_tasks())

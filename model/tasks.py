@@ -1,12 +1,43 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from .init import get_connection
 from .schema import ensure_tasks_table
 
 logger = logging.getLogger(__name__)
+
+_MSK = ZoneInfo("Europe/Moscow")
+_EXECUTE_AT_FORMATS = (
+    "%d.%m.%Y %H:%M",
+    "%d.%m.%Y",
+    "%Y-%m-%d %H:%M",
+    "%Y-%m-%d",
+)
+
+
+def _normalize_execute_at(raw: Optional[str]) -> Optional[datetime]:
+    if raw is None:
+        return None
+
+    text = raw.strip()
+    if not text:
+        return None
+
+    for fmt in _EXECUTE_AT_FORMATS:
+        try:
+            return datetime.strptime(text, fmt).replace(tzinfo=_MSK)
+        except ValueError:
+            continue
+
+    raise ValueError(
+        f"Некорректный формат даты: «{text}». "
+        "Используй ДД.ММ.ГГГГ ЧЧ:ММ (31.05.2026 16:00) "
+        "или ГГГГ-ММ-ДД ЧЧ:ММ (2026-05-31 16:00)."
+    )
 
 
 def insert_task(task_text: str, execute_at: Optional[str] = None) -> int:
@@ -14,17 +45,20 @@ def insert_task(task_text: str, execute_at: Optional[str] = None) -> int:
     if not normalized_text:
         raise ValueError("Task text is empty.")
 
+    normalized_execute_at = _normalize_execute_at(execute_at)
+
     logger.info(
-        "insert_task: inserting task text_len=%s execute_at=%s",
+        "insert_task: inserting task text_len=%s execute_at=%s normalized=%s",
         len(normalized_text),
         execute_at,
+        normalized_execute_at,
     )
     with get_connection() as conn:
         ensure_tasks_table(conn)
         with conn.cursor() as cur:
             cur.execute(
                 "INSERT INTO tasks (text, execute_at) VALUES (%s, %s) RETURNING id;",
-                (normalized_text, execute_at),
+                (normalized_text, normalized_execute_at),
             )
             row = cur.fetchone()
             conn.commit()

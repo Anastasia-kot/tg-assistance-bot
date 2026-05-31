@@ -6,14 +6,19 @@ from auth import require_allowed_user
 from model import get_id_by_index, list_tasks
 
 from .ai import get_ai_response
+from .buttons import BTN_LIST_TASKS
+from .parsers import is_freeform_user_text
 from view import (
     print_add_task,
     print_complete_tasks_confirm,
     print_delete_tasks_confirm,
-    print_list_tasks,
 )
 
 _AI_EMPTY_IDS_HINT = "Не указаны номера задач."
+_AI_SUPPORTED_ACTIONS = frozenset({"/add", "/delete", "/complete"})
+_AI_UNRECOGNIZED_HINT = (
+    f"Не понял запрос. Для списка задач используй кнопку «{BTN_LIST_TASKS}» или команду /list."
+)
 
 
 def _queue_task_ids_from_ai_payload(
@@ -36,7 +41,7 @@ def _queue_task_ids_from_ai_payload(
 
 
 def register_command_handlers(bot):
-    @bot.message_handler(func=lambda m: isinstance(m.text, str))
+    @bot.message_handler(func=is_freeform_user_text)
     @require_allowed_user(bot)
     def ai_message(message):
 
@@ -48,15 +53,15 @@ def register_command_handlers(bot):
         try:
             payload = json.loads(answer)
         except json.JSONDecodeError:
-            return bot.send_message(message.chat.id, text=answer)
+            return bot.send_message(message.chat.id, text=_AI_UNRECOGNIZED_HINT)
 
         if not isinstance(payload, dict):
-            return bot.send_message(message.chat.id, text=answer)
+            return bot.send_message(message.chat.id, text=_AI_UNRECOGNIZED_HINT)
 
         action = payload.get("type")
 
-        if action == "/list":
-            return print_list_tasks(bot, message, list_tasks())
+        if action not in _AI_SUPPORTED_ACTIONS:
+            return bot.send_message(message.chat.id, text=_AI_UNRECOGNIZED_HINT)
 
         if action == "/delete":
             return _queue_task_ids_from_ai_payload(
@@ -70,4 +75,3 @@ def register_command_handlers(bot):
 
         if action == "/add":
             return print_add_task(bot, message, payload)
-

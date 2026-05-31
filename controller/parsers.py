@@ -2,6 +2,27 @@ from __future__ import annotations
 
 import re
 
+KNOWN_BOT_COMMANDS = frozenset({"start", "list", "add", "delete", "complete", "_all"})
+
+
+def is_unknown_slash_command(message) -> bool:
+    text = getattr(message, "text", None)
+    if not isinstance(text, str) or not text.startswith("/"):
+        return False
+    command = text.split(maxsplit=1)[0][1:]
+    if "@" in command:
+        command = command.split("@", 1)[0]
+    return command.lower() not in KNOWN_BOT_COMMANDS
+
+
+def is_freeform_user_text(message) -> bool:
+    text = getattr(message, "text", None)
+    if not isinstance(text, str) or text.startswith("/"):
+        return False
+    from controller.buttons import BTN_LIST_TASKS
+
+    return text != BTN_LIST_TASKS
+
 
 def parse_add_command(text: str) -> tuple[str, str | None]:
     """Разбирает текст команды добавления задачи.

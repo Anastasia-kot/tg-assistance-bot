@@ -19,13 +19,7 @@ def register_button_handlers(bot):
     def prompt_list_tasks(message):
         print_list_tasks(bot, message, list_tasks())
 
-    @bot.message_handler(content_types=["text"])
-    def buttons(message):
-        if message.text == BTN_LIST_TASKS:
-            prompt_list_tasks(message)
-            return
-
-        bot.send_message(
-            message.chat.id,
-            text="Я могу отвечать только на нажатие кнопок.",
-        )
+    @bot.message_handler(func=lambda message: message.text == BTN_LIST_TASKS)
+    @require_allowed_user(bot)
+    def list_tasks_button(message):
+        prompt_list_tasks(message)

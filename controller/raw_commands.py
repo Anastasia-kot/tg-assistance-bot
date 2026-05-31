@@ -9,7 +9,7 @@ from auth import is_allowed_user, require_allowed_user
 from model import add_task, complete_tasks, delete_tasks, get_id_by_index, list_tasks
 
 from .buttons import BTN_LIST_TASKS, build_main_reply_keyboard
-from .parsers import parse_add_command, parse_index_numbers
+from .parsers import is_unknown_slash_command, parse_add_command, parse_index_numbers
 from view import print_list_tasks
 
 from version import VERSION
@@ -114,3 +114,8 @@ def raw_command_handlers(bot):
             usage_hint="Используй: /complete <номера задач>",
             apply_by_task_ids=complete_tasks,
         )
+
+    @bot.message_handler(func=is_unknown_slash_command)
+    @require_allowed_user(bot)
+    def unknown_command_message(message):
+        bot.send_message(message.chat.id, text="Неизвестная команда.")

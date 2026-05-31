@@ -148,7 +148,7 @@ def get_task_id_by_display_index(display_index: int, limit: int = 50) -> int:
         display_index,
         limit,
     )
-    rows = select_tasks(limit=limit)
+    rows = select_today_tasks(limit=limit)
     if display_index < 1 or display_index > len(rows):
         logger.warning(
             "get_task_id_by_display_index: invalid index display_index=%s row_count=%s",

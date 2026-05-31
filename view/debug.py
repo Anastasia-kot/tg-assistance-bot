@@ -5,13 +5,22 @@ from view.utils import format_execute_at
 TELEGRAM_MESSAGE_LIMIT = 4096
 
 
-def _format_db_value(value) -> str:
+def _is_empty(value) -> bool:
     if value is None:
-        return "—"
+        return True
+    if isinstance(value, str) and not value.strip():
+        return True
+    if isinstance(value, bool) and not value:
+        return True
+    return False
+
+
+def _format_field(name: str, value) -> str:
     if isinstance(value, bool):
-        return "true" if value else "false"
+        return f"{name}=true"
     formatted = format_execute_at(value)
-    return formatted if formatted else str(value)
+    display = formatted if formatted else str(value)
+    return f"{name}={display}"
 
 
 def _format_task_row(
@@ -21,15 +30,20 @@ def _format_task_row(
     execute_at,
     completed: bool,
     archived_at,
-) -> str:
-    return (
-        f"id={task_id}\n"
-        f"text={text}\n"
-        f"created_at={_format_db_value(created_at)}\n"
-        f"execute_at={_format_db_value(execute_at)}\n"
-        f"completed={_format_db_value(completed)}\n"
-        f"archived_at={_format_db_value(archived_at)}"
+) -> list[str]:
+    fields = (
+        ("id", task_id),
+        ("text", text),
+        ("created_at", created_at),
+        ("execute_at", execute_at),
+        ("completed", completed),
+        ("archived_at", archived_at),
     )
+    return [
+        _format_field(name, value)
+        for name, value in fields
+        if not _is_empty(value)
+    ]
 
 
 def _chunk_lines(lines: list[str], limit: int = TELEGRAM_MESSAGE_LIMIT) -> list[str]:
@@ -62,7 +76,12 @@ class Debug:
             _format_task_row(task_id, text, created_at, execute_at, completed, archived_at)
             for task_id, text, created_at, execute_at, completed, archived_at in rows
         ]
-        return [f"Всего записей: {len(blocks)}", "───────────────", *blocks]
+        lines = [f"Всего записей: {len(blocks)}", "───────────────"]
+        for index, block in enumerate(blocks):
+            if index > 0:
+                lines.append("")
+            lines.extend(block)
+        return lines
 
     @staticmethod
     def print_all_tasks(bot, message, rows) -> None:

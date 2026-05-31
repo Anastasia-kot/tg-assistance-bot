@@ -1,6 +1,7 @@
 from typing import Optional
 
 from .schema import check_connection
+from .debug import debug
 from .tasks import (
     complete_tasks_by_ids,
     delete_tasks_by_ids,

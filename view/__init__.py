@@ -19,6 +19,7 @@ from view.get_list_tasks import (
     get_list_tasks_html_strike,
 )
 from view.utils import display_indices_for_task_db_ids
+from view.debug import debug
 from view.print_list_tasks import (
     print_list_tasks,
     print_list_tasks_with_complete,
@@ -37,6 +38,7 @@ __all__ = [
     "display_indices_for_task_db_ids",
     "get_list_tasks_html_complete_mark",
     "get_list_tasks_html_strike",
+    "debug",
     "print_add_task",
     "print_list_tasks",
     "print_list_tasks_with_complete",

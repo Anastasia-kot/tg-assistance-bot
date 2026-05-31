@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 
 from controller import (
+    debug,
     raw_command_handlers,
     register_button_handlers,
     register_callback_handlers,
@@ -28,6 +29,7 @@ run_db_check()
 start_scheduler(bot)
 
 raw_command_handlers(bot)
+debug.register_handlers(bot)
 register_command_handlers(bot)
 register_button_handlers(bot)
 register_callback_handlers(bot)

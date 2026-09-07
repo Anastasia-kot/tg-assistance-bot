@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import os
 from contextlib import contextmanager
@@ -17,7 +19,7 @@ def get_connection():
         "dbname": os.getenv("PGDATABASE"),
         "user": os.getenv("PGUSER"),
         "password": os.getenv("PGPASSWORD"),
-        "port": int(os.getenv("PGPORT")),
+        "port": int(os.getenv("PGPORT") or "5432"),
     }
 
     logger.info("opening db connection: %s", {**cfg, "password": "***"})
@@ -26,4 +28,3 @@ def get_connection():
         yield conn
     finally:
         conn.close()
-

@@ -1,14 +1,11 @@
-from .buttons import register_button_handlers
-from .callback_handlers import register_callback_handlers
-from .commands import register_command_handlers
-from .debug import debug
-from .raw_commands import raw_command_handlers
+from .callbacks import register_callback_handlers
+from .login import register_login_handlers
+from .photos import register_photo_handlers
+from .start import register_start_handlers
 
 
-__all__ = [
-    "debug",
-    "raw_command_handlers",
-    "register_button_handlers",
-    "register_callback_handlers",
-    "register_command_handlers",
-]
+def register_handlers(bot) -> None:
+    register_start_handlers(bot)
+    register_photo_handlers(bot)
+    register_callback_handlers(bot)
+    register_login_handlers(bot)

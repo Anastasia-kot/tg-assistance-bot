@@ -1,48 +1,51 @@
-from view.print_add_task_confirm import (
-    CB_ADD_TASK_NO_PREFIX,
-    CB_ADD_TASK_YES_PREFIX,
-    print_add_task,
+from .keyboards import CB_PUBLISH_NO, CB_PUBLISH_YES, phone_keyboard, publish_keyboard, remove_keyboard
+from .messages import (
+    MSG_ASK_2FA,
+    MSG_ASK_CODE,
+    MSG_ASK_PHONE,
+    MSG_ASK_PUBLISH,
+    MSG_AUTH_DONE,
+    MSG_BAD_PHONE,
+    MSG_CANCELLED,
+    MSG_CODE_SENT,
+    MSG_FINISH_AUTH,
+    MSG_LOGOUT,
+    MSG_NEED_AUTH_FOR_PHOTO,
+    MSG_NO_PENDING,
+    MSG_PRIVATE_ONLY,
+    MSG_PUBLISHED,
+    MSG_START_NEED_AUTH,
+    MSG_START_READY,
+    MSG_STATUS_NEED,
+    MSG_STATUS_READY,
+    MSG_UNKNOWN_COMMAND,
+    mask_phone,
 )
-from view.print_complete_tasks_confirm import (
-    CB_BULK_COMPLETE_NO_PREFIX,
-    CB_BULK_COMPLETE_YES_PREFIX,
-    print_complete_tasks_confirm,
-)
-from view.print_delete_tasks_confirm import (
-    CB_BULK_DELETE_NO_PREFIX,
-    CB_BULK_DELETE_YES_PREFIX,
-    print_delete_tasks_confirm,
-)
-from view.get_list_tasks import (
-    get_list_tasks,
-    get_list_tasks_html_complete_mark,
-    get_list_tasks_html_strike,
-)
-from view.utils import display_indices_for_task_db_ids
-from view.debug import debug
-from view.print_list_tasks import (
-    print_list_tasks,
-    print_list_tasks_with_complete,
-    print_list_tasks_with_delete,
-)
-
 
 __all__ = [
-    "CB_ADD_TASK_NO_PREFIX",
-    "CB_ADD_TASK_YES_PREFIX",
-    "CB_BULK_COMPLETE_NO_PREFIX",
-    "CB_BULK_COMPLETE_YES_PREFIX",
-    "CB_BULK_DELETE_NO_PREFIX",
-    "CB_BULK_DELETE_YES_PREFIX",
-    "get_list_tasks",
-    "display_indices_for_task_db_ids",
-    "get_list_tasks_html_complete_mark",
-    "get_list_tasks_html_strike",
-    "debug",
-    "print_add_task",
-    "print_list_tasks",
-    "print_list_tasks_with_complete",
-    "print_complete_tasks_confirm",
-    "print_delete_tasks_confirm",
-    "print_list_tasks_with_delete",
+    "CB_PUBLISH_NO",
+    "CB_PUBLISH_YES",
+    "MSG_ASK_2FA",
+    "MSG_ASK_CODE",
+    "MSG_ASK_PHONE",
+    "MSG_ASK_PUBLISH",
+    "MSG_AUTH_DONE",
+    "MSG_BAD_PHONE",
+    "MSG_CANCELLED",
+    "MSG_CODE_SENT",
+    "MSG_FINISH_AUTH",
+    "MSG_LOGOUT",
+    "MSG_NEED_AUTH_FOR_PHOTO",
+    "MSG_NO_PENDING",
+    "MSG_PRIVATE_ONLY",
+    "MSG_PUBLISHED",
+    "MSG_START_NEED_AUTH",
+    "MSG_START_READY",
+    "MSG_STATUS_NEED",
+    "MSG_STATUS_READY",
+    "MSG_UNKNOWN_COMMAND",
+    "mask_phone",
+    "phone_keyboard",
+    "publish_keyboard",
+    "remove_keyboard",
 ]

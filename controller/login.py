@@ -3,6 +3,7 @@ from __future__ import annotations
 from controller.helpers import (
     looks_like_phone,
     normalize_phone,
+    parse_app_keys,
     prompt_start_auth,
     reject_if_not_private,
     telegram_id_of,
@@ -12,9 +13,12 @@ from model.stories import StoriesError, request_login_code, sign_in_code, sign_i
 from model.users import (
     AUTH_NEED_2FA,
     AUTH_NEED_CODE,
+    AUTH_NEED_KEYS,
     AUTH_NEED_PHONE,
     AUTH_READY,
+    app_credentials,
     ensure_user,
+    has_app_keys,
     is_ready,
     mark_ready,
     update_user,
@@ -22,10 +26,15 @@ from model.users import (
 from view import (
     MSG_ASK_2FA,
     MSG_ASK_CODE,
+    MSG_ASK_KEYS,
+    MSG_ASK_PHONE,
     MSG_AUTH_DONE,
+    MSG_BAD_KEYS,
     MSG_BAD_PHONE,
     MSG_CODE_SENT,
+    MSG_KEYS_SAVED,
     mask_phone,
+    phone_keyboard,
     remove_keyboard,
 )
 
@@ -45,8 +54,11 @@ def _phone_from_message(message) -> str | None:
     return normalize_phone(text)
 
 
-def _send_code(bot, chat_id: int, telegram_id: int, phone: str, session_string: str | None) -> None:
-    session, phone_code_hash = request_login_code(phone, session_string)
+def _send_code(bot, chat_id: int, telegram_id: int, user: dict, phone: str) -> None:
+    api_id, api_hash = app_credentials(user)
+    session, phone_code_hash = request_login_code(
+        api_id, api_hash, phone, user.get("session_string")
+    )
     update_user(
         telegram_id,
         phone=phone,
@@ -87,12 +99,14 @@ def _handle_login_message(bot, message) -> None:
         bot.send_message(message.chat.id, MSG_AUTH_DONE, reply_markup=remove_keyboard())
         return
 
-    state = user.get("auth_state") or AUTH_NEED_PHONE
     with user_lock(telegram_id):
         user = ensure_user(telegram_id)
-        state = user.get("auth_state") or AUTH_NEED_PHONE
+        state = user.get("auth_state") or AUTH_NEED_KEYS
         if state == AUTH_READY:
             bot.send_message(message.chat.id, MSG_AUTH_DONE, reply_markup=remove_keyboard())
+            return
+        if not has_app_keys(user) or state == AUTH_NEED_KEYS:
+            _handle_keys(bot, message, telegram_id)
             return
         if state == AUTH_NEED_2FA:
             _handle_password(bot, message, telegram_id, user)
@@ -103,6 +117,26 @@ def _handle_login_message(bot, message) -> None:
         _handle_phone(bot, message, telegram_id, user)
 
 
+def _handle_keys(bot, message, telegram_id: int) -> None:
+    text = (getattr(message, "text", None) or "").strip()
+    parsed = parse_app_keys(text)
+    try_delete(bot, message)
+    if not parsed:
+        bot.send_message(message.chat.id, MSG_BAD_KEYS)
+        return
+    api_id, api_hash = parsed
+    update_user(
+        telegram_id,
+        api_id=api_id,
+        api_hash=api_hash,
+        auth_state=AUTH_NEED_PHONE,
+        clear_session=True,
+        clear_phone_code_hash=True,
+    )
+    bot.send_message(message.chat.id, MSG_KEYS_SAVED)
+    bot.send_message(message.chat.id, MSG_ASK_PHONE, reply_markup=phone_keyboard())
+
+
 def _handle_phone(bot, message, telegram_id: int, user: dict) -> None:
     phone = _phone_from_message(message)
     try_delete(bot, message)
@@ -110,7 +144,7 @@ def _handle_phone(bot, message, telegram_id: int, user: dict) -> None:
         bot.send_message(message.chat.id, MSG_BAD_PHONE)
         return
     try:
-        _send_code(bot, message.chat.id, telegram_id, phone, user.get("session_string"))
+        _send_code(bot, message.chat.id, telegram_id, user, phone)
     except StoriesError as exc:
         bot.send_message(message.chat.id, exc.user_message)
 
@@ -131,13 +165,16 @@ def _handle_code_or_new_phone(bot, message, telegram_id: int, user: dict) -> Non
     phone = user.get("phone")
     session_string = user.get("session_string")
     phone_code_hash = user.get("phone_code_hash")
-    if not phone or not session_string or not phone_code_hash:
+    if not phone or not session_string or not phone_code_hash or not has_app_keys(user):
         prompt_start_auth(bot, message.chat.id)
-        update_user(telegram_id, auth_state=AUTH_NEED_PHONE)
+        update_user(telegram_id, auth_state=AUTH_NEED_KEYS)
         return
 
+    api_id, api_hash = app_credentials(user)
     try:
-        new_session, needs_2fa = sign_in_code(session_string, phone, code, phone_code_hash)
+        new_session, needs_2fa = sign_in_code(
+            api_id, api_hash, session_string, phone, code, phone_code_hash
+        )
     except StoriesError as exc:
         saved = getattr(exc, "session_string", None)
         if saved:
@@ -166,12 +203,13 @@ def _handle_password(bot, message, telegram_id: int, user: dict) -> None:
         bot.send_message(message.chat.id, MSG_ASK_2FA)
         return
     session_string = user.get("session_string")
-    if not session_string:
+    if not session_string or not has_app_keys(user):
         prompt_start_auth(bot, message.chat.id)
-        update_user(telegram_id, auth_state=AUTH_NEED_PHONE)
+        update_user(telegram_id, auth_state=AUTH_NEED_KEYS)
         return
+    api_id, api_hash = app_credentials(user)
     try:
-        new_session = sign_in_password(session_string, password)
+        new_session = sign_in_password(api_id, api_hash, session_string, password)
     except StoriesError as exc:
         bot.send_message(message.chat.id, exc.user_message)
         return

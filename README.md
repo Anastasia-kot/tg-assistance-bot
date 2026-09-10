@@ -6,7 +6,7 @@ Telegram-бот на [pyTelegramBotAPI](https://github.com/eternnoir/pyTelegramB
 
 ## Как это работает
 
-1. Пользователь пишет `/start` и один раз подключает свой Telegram: номер телефона → код из Telegram → облачный пароль, если включена 2FA.
+1. Пользователь пишет `/start` и один раз присылает `api_id` и `api_hash` с [my.telegram.org](https://my.telegram.org), затем номер телефона → код → облачный пароль, если включена 2FA.
 2. Бот сохраняет сессию этого `telegram_id` и сам обновляет её после логина и каждой публикации.
 3. Пользователь присылает картинку. Бот спрашивает «Опубликовать в сторис Telegram?» с кнопками **Да** / **Нет**.
 4. **Да** — сторис уходит в аккаунт этого пользователя. **Нет** — диалог сбрасывается, можно прислать новое фото.
@@ -30,9 +30,10 @@ Telegram-бот на [pyTelegramBotAPI](https://github.com/eternnoir/pyTelegramB
 
 | Переменная | Назначение |
 |------------|------------|
-| `BOT_TOKEN` | токен бота от [@BotFather](https://t.me/BotFather) |
-| `API_ID`, `API_HASH` | ключи приложения Telethon с [my.telegram.org](https://my.telegram.org) |
+| `BOT_TOKEN` | токен **бота** от [@BotFather](https://t.me/BotFather). На Bothost также: `API_TOKEN`, `TELEGRAM_BOT_TOKEN`. Это токен самого чат-бота, не ключи пользователя. |
 | `PGHOST`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`, `PGPORT` | PostgreSQL (`PGPORT` по умолчанию 5432) |
+
+`api_id` и `api_hash` пользователь присылает в чат один раз; они хранятся в БД на каждого человека. В `.env` их нет.
 
 Файл `.env` подхватывается через `python-dotenv`.
 

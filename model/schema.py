@@ -28,15 +28,19 @@ def ensure_schema() -> None:
                 """
                 CREATE TABLE IF NOT EXISTS users (
                     telegram_id BIGINT PRIMARY KEY,
+                    api_id INTEGER,
+                    api_hash TEXT,
                     phone TEXT,
                     session_string TEXT,
                     phone_code_hash TEXT,
-                    auth_state TEXT NOT NULL DEFAULT 'need_phone',
+                    auth_state TEXT NOT NULL DEFAULT 'need_keys',
                     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
                 );
                 """
             )
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS api_id INTEGER;")
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS api_hash TEXT;")
             cur.execute(
                 """
                 CREATE TABLE IF NOT EXISTS pending_stories (

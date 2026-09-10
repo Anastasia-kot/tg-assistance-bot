@@ -1,9 +1,10 @@
 import logging
-import os
+import sys
 
 import telebot
 from dotenv import load_dotenv
 
+from config import bot_token
 from controller import register_handlers
 from model import run_db_check
 from version import VERSION
@@ -15,9 +16,15 @@ logging.basicConfig(
 logger = logging.getLogger("main")
 
 load_dotenv()
-if not os.getenv("API_ID") or not os.getenv("API_HASH"):
-    logger.warning("API_ID or API_HASH is not set")
-bot = telebot.TeleBot(os.getenv("BOT_TOKEN"))
+
+token = bot_token()
+if not token or ":" not in token:
+    logger.error(
+        "BOT_TOKEN is missing or invalid. Set BOT_TOKEN, API_TOKEN, or TELEGRAM_BOT_TOKEN."
+    )
+    sys.exit(1)
+
+bot = telebot.TeleBot(token)
 
 run_db_check()
 register_handlers(bot)

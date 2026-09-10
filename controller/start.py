@@ -7,8 +7,9 @@ from controller.helpers import (
     telegram_id_of,
 )
 from model.pending import clear_pending
-from model.users import AUTH_NEED_PHONE, ensure_user, is_ready, reset_login
+from model.users import AUTH_NEED_KEYS, AUTH_NEED_PHONE, ensure_user, has_app_keys, is_ready, reset_login
 from view import (
+    MSG_ASK_KEYS,
     MSG_ASK_PHONE,
     MSG_LOGOUT,
     MSG_START_READY,
@@ -36,7 +37,14 @@ def register_start_handlers(bot):
                 reply_markup=remove_keyboard(),
             )
             return
-        if user.get("auth_state") == AUTH_NEED_PHONE:
+        if user.get("auth_state") == AUTH_NEED_PHONE and has_app_keys(user):
+            bot.send_message(
+                message.chat.id,
+                MSG_ASK_PHONE,
+                reply_markup=phone_keyboard(),
+            )
+            return
+        if user.get("auth_state") == AUTH_NEED_KEYS or not has_app_keys(user):
             prompt_start_auth(bot, message.chat.id)
             return
         remind_auth(bot, message.chat.id, user)
@@ -50,12 +58,15 @@ def register_start_handlers(bot):
             return
         ensure_user(telegram_id)
         clear_pending(telegram_id)
-        reset_login(telegram_id, keep_phone=True)
-        bot.send_message(
-            message.chat.id,
-            MSG_ASK_PHONE,
-            reply_markup=phone_keyboard(),
-        )
+        user = reset_login(telegram_id, keep_phone=True, keep_keys=True)
+        if has_app_keys(user):
+            bot.send_message(
+                message.chat.id,
+                MSG_ASK_PHONE,
+                reply_markup=phone_keyboard(),
+            )
+            return
+        bot.send_message(message.chat.id, MSG_ASK_KEYS)
 
     @bot.message_handler(commands=["logout"])
     def handle_logout(message):
@@ -66,12 +77,8 @@ def register_start_handlers(bot):
             return
         ensure_user(telegram_id)
         clear_pending(telegram_id)
-        reset_login(telegram_id, keep_phone=False)
-        bot.send_message(
-            message.chat.id,
-            MSG_LOGOUT,
-            reply_markup=phone_keyboard(),
-        )
+        reset_login(telegram_id, keep_phone=False, keep_keys=False)
+        bot.send_message(message.chat.id, MSG_LOGOUT)
 
     @bot.message_handler(commands=["status"])
     def handle_status(message):

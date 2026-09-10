@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
-import os
 import random
 import threading
 from contextlib import contextmanager
@@ -64,14 +63,6 @@ def user_lock(telegram_id: int):
         lock.release()
 
 
-def _credentials() -> tuple[int, str]:
-    api_id = os.getenv("API_ID")
-    api_hash = os.getenv("API_HASH")
-    if not api_id or not api_hash:
-        raise StoriesError("Сервис временно недоступен. Попробуйте позже.")
-    return int(api_id), api_hash
-
-
 def _map_rpc(exc: BaseException) -> StoriesError:
     if isinstance(exc, StoriesError):
         return exc
@@ -107,18 +98,22 @@ def _run(factory: Callable):
     return asyncio.run(factory())
 
 
-async def _connect(session_string: Optional[str]) -> TelegramClient:
-    api_id, api_hash = _credentials()
-    client = TelegramClient(StringSession(session_string or ""), api_id, api_hash)
+async def _connect(api_id: int, api_hash: str, session_string: Optional[str]) -> TelegramClient:
+    client = TelegramClient(StringSession(session_string or ""), int(api_id), str(api_hash))
     await client.connect()
     return client
 
 
-def request_login_code(phone: str, session_string: Optional[str] = None) -> tuple[str, str]:
+def request_login_code(
+    api_id: int,
+    api_hash: str,
+    phone: str,
+    session_string: Optional[str] = None,
+) -> tuple[str, str]:
     """Отправляет код входа. Возвращает (session_string, phone_code_hash)."""
 
     async def _inner():
-        client = await _connect(session_string)
+        client = await _connect(api_id, api_hash, session_string)
         try:
             sent = await client.send_code_request(phone)
             return client.session.save(), sent.phone_code_hash
@@ -131,6 +126,8 @@ def request_login_code(phone: str, session_string: Optional[str] = None) -> tupl
 
 
 def sign_in_code(
+    api_id: int,
+    api_hash: str,
     session_string: str,
     phone: str,
     code: str,
@@ -139,7 +136,7 @@ def sign_in_code(
     """Вход по коду. Возвращает (session_string, needs_2fa)."""
 
     async def _inner():
-        client = await _connect(session_string)
+        client = await _connect(api_id, api_hash, session_string)
         try:
             try:
                 await client.sign_in(phone, code, phone_code_hash=phone_code_hash)
@@ -153,7 +150,6 @@ def sign_in_code(
                 saved = session_string
             mapped = _map_rpc(exc)
             if isinstance(mapped, StoriesError) and not isinstance(mapped, SessionExpiredError):
-                # сохраняем промежуточную сессию на случай повтора кода
                 setattr(mapped, "session_string", saved)
             raise mapped from exc
         finally:
@@ -162,9 +158,9 @@ def sign_in_code(
     return _run(_inner)
 
 
-def sign_in_password(session_string: str, password: str) -> str:
+def sign_in_password(api_id: int, api_hash: str, session_string: str, password: str) -> str:
     async def _inner():
-        client = await _connect(session_string)
+        client = await _connect(api_id, api_hash, session_string)
         try:
             await client.sign_in(password=password)
             return client.session.save()
@@ -176,11 +172,11 @@ def sign_in_password(session_string: str, password: str) -> str:
     return _run(_inner)
 
 
-def publish_photo(session_string: str, image_bytes: bytes) -> str:
+def publish_photo(api_id: int, api_hash: str, session_string: str, image_bytes: bytes) -> str:
     """Публикует фото в сторис. Возвращает обновлённый session_string."""
 
     async def _inner():
-        client = await _connect(session_string)
+        client = await _connect(api_id, api_hash, session_string)
         saved = session_string
         try:
             if not await client.is_user_authorized():

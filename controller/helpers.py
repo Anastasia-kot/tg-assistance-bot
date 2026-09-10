@@ -7,12 +7,14 @@ from typing import Any, Optional
 from model.users import (
     AUTH_NEED_2FA,
     AUTH_NEED_CODE,
-    AUTH_NEED_PHONE,
+    AUTH_NEED_KEYS,
+    has_app_keys,
     is_ready,
 )
 from view import (
     MSG_ASK_2FA,
     MSG_ASK_CODE,
+    MSG_ASK_KEYS,
     MSG_ASK_PHONE,
     MSG_FINISH_AUTH,
     MSG_PRIVATE_ONLY,
@@ -72,6 +74,16 @@ def looks_like_phone(text: str) -> bool:
     return normalize_phone(text) is not None
 
 
+def parse_app_keys(text: str) -> Optional[tuple[int, str]]:
+    parts = [p.strip() for p in re.split(r"[\s:,;]+", (text or "").strip()) if p.strip()]
+    if len(parts) != 2 or not parts[0].isdigit():
+        return None
+    api_hash = parts[1]
+    if len(api_hash) < 16:
+        return None
+    return int(parts[0]), api_hash
+
+
 def remind_auth(bot, chat_id: int, user: dict[str, Any]) -> None:
     if is_ready(user):
         return
@@ -82,11 +94,14 @@ def remind_auth(bot, chat_id: int, user: dict[str, Any]) -> None:
     if state == AUTH_NEED_2FA:
         bot.send_message(chat_id, MSG_ASK_2FA)
         return
-    bot.send_message(chat_id, MSG_ASK_PHONE, reply_markup=phone_keyboard())
+    if has_app_keys(user) and state != AUTH_NEED_KEYS:
+        bot.send_message(chat_id, MSG_ASK_PHONE, reply_markup=phone_keyboard())
+        return
+    bot.send_message(chat_id, MSG_ASK_KEYS)
 
 
 def prompt_start_auth(bot, chat_id: int) -> None:
-    bot.send_message(chat_id, MSG_START_NEED_AUTH, reply_markup=phone_keyboard())
+    bot.send_message(chat_id, MSG_START_NEED_AUTH)
 
 
 def prompt_finish_auth(bot, chat_id: int, user: dict[str, Any]) -> None:

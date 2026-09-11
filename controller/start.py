@@ -3,11 +3,10 @@ from __future__ import annotations
 from controller.helpers import (
     prompt_start_auth,
     reject_if_not_private,
-    remind_auth,
     telegram_id_of,
 )
 from model.pending import clear_pending
-from model.users import AUTH_NEED_KEYS, AUTH_NEED_PHONE, ensure_user, has_app_keys, is_ready, reset_login
+from model.users import AUTH_NEED_KEYS, ensure_user, has_app_keys, is_ready, reset_login, update_user
 from view import (
     MSG_ASK_KEYS,
     MSG_ASK_PHONE,
@@ -30,24 +29,15 @@ def register_start_handlers(bot):
         if telegram_id is None:
             return
         user = ensure_user(telegram_id)
-        if is_ready(user):
+        if has_app_keys(user):
             bot.send_message(
                 message.chat.id,
                 MSG_START_READY,
                 reply_markup=remove_keyboard(),
             )
             return
-        if user.get("auth_state") == AUTH_NEED_PHONE and has_app_keys(user):
-            bot.send_message(
-                message.chat.id,
-                MSG_ASK_PHONE,
-                reply_markup=phone_keyboard(),
-            )
-            return
-        if user.get("auth_state") == AUTH_NEED_KEYS or not has_app_keys(user):
-            prompt_start_auth(bot, message.chat.id)
-            return
-        remind_auth(bot, message.chat.id, user)
+        update_user(telegram_id, auth_state=AUTH_NEED_KEYS)
+        prompt_start_auth(bot, message.chat.id)
 
     @bot.message_handler(commands=["login"])
     def handle_login(message):

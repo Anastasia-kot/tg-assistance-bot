@@ -2,9 +2,8 @@ import logging
 import sys
 
 import telebot
-from dotenv import load_dotenv
 
-from config import bot_token
+from config import bot_token, load_env_files, token_env_key_names
 from controller import register_handlers
 from model import run_db_check
 from version import VERSION
@@ -15,12 +14,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger("main")
 
-load_dotenv()
+load_env_files()
 
 token = bot_token()
 if not token or ":" not in token:
+    keys = ", ".join(token_env_key_names()) or "none"
     logger.error(
-        "BOT_TOKEN is missing or invalid. Set BOT_TOKEN, API_TOKEN, or TELEGRAM_BOT_TOKEN."
+        "BOT_TOKEN is missing or invalid. "
+        "Set Bot Token in Bothost (env BOT_TOKEN). Token-like env keys: %s",
+        keys,
     )
     sys.exit(1)
 

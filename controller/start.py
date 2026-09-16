@@ -1,18 +1,18 @@
 from __future__ import annotations
 
+from config import business_connection_id
 from controller.helpers import (
-    prompt_start_auth,
     reject_if_not_private,
     telegram_id_of,
 )
 from model.pending import clear_pending
-from model.users import AUTH_NEED_KEYS, ensure_user, has_app_keys, is_ready, reset_login, update_user
+from model.users import ensure_user, has_app_keys, reset_login
 from view import (
     MSG_ASK_KEYS,
     MSG_ASK_PHONE,
+    MSG_BUSINESS_CONNECTION_MISSING,
     MSG_LOGOUT,
     MSG_START_READY,
-    MSG_STATUS_NEED,
     MSG_STATUS_READY,
     MSG_UNKNOWN_COMMAND,
     phone_keyboard,
@@ -28,16 +28,14 @@ def register_start_handlers(bot):
         telegram_id = telegram_id_of(message)
         if telegram_id is None:
             return
-        user = ensure_user(telegram_id)
-        if has_app_keys(user):
-            bot.send_message(
-                message.chat.id,
-                MSG_START_READY,
-                reply_markup=remove_keyboard(),
-            )
+        if business_connection_id() is None:
+            bot.send_message(message.chat.id, MSG_BUSINESS_CONNECTION_MISSING)
             return
-        update_user(telegram_id, auth_state=AUTH_NEED_KEYS)
-        prompt_start_auth(bot, message.chat.id)
+        bot.send_message(
+            message.chat.id,
+            MSG_START_READY,
+            reply_markup=remove_keyboard(),
+        )
 
     @bot.message_handler(commands=["login"])
     def handle_login(message):
@@ -77,11 +75,10 @@ def register_start_handlers(bot):
         telegram_id = telegram_id_of(message)
         if telegram_id is None:
             return
-        user = ensure_user(telegram_id)
-        if is_ready(user):
-            bot.send_message(message.chat.id, MSG_STATUS_READY)
+        if business_connection_id() is None:
+            bot.send_message(message.chat.id, MSG_BUSINESS_CONNECTION_MISSING)
             return
-        bot.send_message(message.chat.id, MSG_STATUS_NEED)
+        bot.send_message(message.chat.id, MSG_STATUS_READY)
 
     @bot.message_handler(
         func=lambda m: bool(getattr(m, "text", None)) and m.text.startswith("/")

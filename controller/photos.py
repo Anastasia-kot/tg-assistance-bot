@@ -1,13 +1,12 @@
 from __future__ import annotations
 
+from config import business_connection_id
 from controller.helpers import (
-    prompt_finish_auth,
     reject_if_not_private,
     telegram_id_of,
 )
 from model.pending import set_pending
-from model.users import ensure_user, is_ready
-from view import MSG_ASK_PUBLISH, publish_keyboard
+from view import MSG_ASK_PUBLISH, MSG_BUSINESS_CONNECTION_MISSING, publish_keyboard
 
 
 def register_photo_handlers(bot):
@@ -18,9 +17,8 @@ def register_photo_handlers(bot):
         telegram_id = telegram_id_of(message)
         if telegram_id is None:
             return
-        user = ensure_user(telegram_id)
-        if not is_ready(user):
-            prompt_finish_auth(bot, message.chat.id, user)
+        if business_connection_id() is None:
+            bot.send_message(message.chat.id, MSG_BUSINESS_CONNECTION_MISSING)
             return
         photos = getattr(message, "photo", None) or []
         if not photos:

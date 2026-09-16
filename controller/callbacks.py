@@ -1,23 +1,34 @@
 from __future__ import annotations
 
+import io
 import logging
 
+from telebot import types
+
+from config import business_connection_id
 from controller.helpers import telegram_id_of
 from model.pending import pop_pending
-from model.stories import SessionExpiredError, StoriesError, publish_photo, user_lock
-from model.users import app_credentials, ensure_user, has_app_keys, is_ready, reset_login, save_session
+from model.stories import STORY_PERIOD_SECONDS, user_lock
 from view import (
     CB_PUBLISH_NO,
     CB_PUBLISH_YES,
-    MSG_ASK_KEYS,
-    MSG_ASK_PHONE,
+    MSG_BUSINESS_CONNECTION_MISSING,
     MSG_CANCELLED,
     MSG_NO_PENDING,
     MSG_PUBLISHED,
-    phone_keyboard,
 )
 
 logger = logging.getLogger("controller.callbacks")
+
+
+def _publish_business_photo(bot, connection_id: str, image_bytes: bytes) -> None:
+    photo = types.InputFile(io.BytesIO(image_bytes), file_name="story.jpg")
+    content = types.InputStoryContentPhoto(photo=photo)
+    bot.post_story(
+        business_connection_id=connection_id,
+        content=content,
+        active_period=STORY_PERIOD_SECONDS,
+    )
 
 
 def _edit(bot, call, text: str, reply_markup=None) -> None:
@@ -41,10 +52,10 @@ def register_callback_handlers(bot):
             bot.answer_callback_query(call.id)
             return
         with user_lock(telegram_id):
-            user = ensure_user(telegram_id)
-            if not is_ready(user):
-                bot.answer_callback_query(call.id, text="Сначала подключите аккаунт.")
-                _edit(bot, call, "Сначала подключите аккаунт.")
+            connection_id = business_connection_id()
+            if connection_id is None:
+                bot.answer_callback_query(call.id, text="Ошибка конфигурации")
+                _edit(bot, call, MSG_BUSINESS_CONNECTION_MISSING)
                 return
             file_id = pop_pending(telegram_id)
             if not file_id:
@@ -54,30 +65,7 @@ def register_callback_handlers(bot):
             try:
                 file_info = bot.get_file(file_id)
                 image_bytes = bot.download_file(file_info.file_path)
-                api_id, api_hash = app_credentials(user)
-                new_session = publish_photo(api_id, api_hash, user["session_string"], image_bytes)
-                save_session(telegram_id, new_session)
-            except SessionExpiredError as exc:
-                user = reset_login(telegram_id, keep_phone=True, keep_keys=True)
-                bot.answer_callback_query(call.id, text="Сессия истекла")
-                _edit(bot, call, exc.user_message)
-                if has_app_keys(user):
-                    bot.send_message(
-                        call.message.chat.id,
-                        MSG_ASK_PHONE,
-                        reply_markup=phone_keyboard(),
-                    )
-                else:
-                    bot.send_message(call.message.chat.id, MSG_ASK_KEYS)
-                return
-            except StoriesError as exc:
-                saved = getattr(exc, "session_string", None)
-                if saved:
-                    save_session(telegram_id, saved)
-                logger.warning("publish failed for %s: %s", telegram_id, exc.user_message)
-                bot.answer_callback_query(call.id, text="Не удалось опубликовать")
-                _edit(bot, call, exc.user_message)
-                return
+                _publish_business_photo(bot, connection_id, image_bytes)
             except Exception:
                 logger.exception("publish failed for %s", telegram_id)
                 bot.answer_callback_query(call.id, text="Ошибка публикации")

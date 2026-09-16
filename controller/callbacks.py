@@ -4,6 +4,7 @@ import io
 import logging
 
 from telebot import types
+from telebot.apihelper import ApiTelegramException
 
 from config import business_connection_id
 from controller.helpers import telegram_id_of
@@ -19,6 +20,18 @@ from view import (
 )
 
 logger = logging.getLogger("controller.callbacks")
+
+
+def _telegram_error_message(error: ApiTelegramException) -> str:
+    if error.description == "Bad Request: BOT_ACCESS_FORBIDDEN":
+        return (
+            "Telegram запретил публикацию: бизнес-подключение отключено "
+            "или у бота нет права публиковать истории."
+        )
+    return (
+        f"Telegram отклонил публикацию: {error.description} "
+        f"(код {error.error_code})."
+    )
 
 
 def _publish_business_photo(bot, connection_id: str, image_bytes: bytes) -> None:
@@ -66,10 +79,32 @@ def register_callback_handlers(bot):
                 file_info = bot.get_file(file_id)
                 image_bytes = bot.download_file(file_info.file_path)
                 _publish_business_photo(bot, connection_id, image_bytes)
+            except ApiTelegramException as error:
+                logger.error(
+                    "story publish rejected: telegram_id=%s, "
+                    "business_connection_id_suffix=%s, error_code=%s, description=%s",
+                    telegram_id,
+                    connection_id[-6:],
+                    error.error_code,
+                    error.description,
+                )
+                bot.answer_callback_query(call.id, text="Telegram отклонил публикацию")
+                _edit(bot, call, _telegram_error_message(error))
+                return
             except Exception:
-                logger.exception("publish failed for %s", telegram_id)
+                logger.exception(
+                    "story publish failed: telegram_id=%s, "
+                    "business_connection_id_suffix=%s",
+                    telegram_id,
+                    connection_id[-6:],
+                )
                 bot.answer_callback_query(call.id, text="Ошибка публикации")
-                _edit(bot, call, "Не удалось опубликовать сторис. Попробуйте ещё раз.")
+                _edit(
+                    bot,
+                    call,
+                    "Не удалось опубликовать сторис из-за внутренней ошибки. "
+                    "Подробности записаны в журнал.",
+                )
                 return
         bot.answer_callback_query(call.id, text="Опубликовано")
         _edit(bot, call, MSG_PUBLISHED)

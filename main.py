@@ -28,4 +28,13 @@ bot = telebot.TeleBot(token)
 register_handlers(bot)
 
 logger.info("starting bot polling version: %s", VERSION)
-bot.polling(none_stop=True, interval=0)
+bot.polling(
+    none_stop=True,
+    interval=0,
+    allowed_updates=[
+        "message",
+        "callback_query",
+        "business_connection",
+        "business_message",
+    ],
+)

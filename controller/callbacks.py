@@ -76,6 +76,17 @@ def _edit(bot, call, text: str, reply_markup=None) -> None:
         bot.send_message(msg.chat.id, text, reply_markup=reply_markup)
 
 
+def _remove_inline_keyboard(bot, call) -> None:
+    try:
+        bot.edit_message_reply_markup(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            reply_markup=None,
+        )
+    except Exception:
+        logger.debug("could not remove story keyboard", exc_info=True)
+
+
 def register_callback_handlers(bot):
     @bot.callback_query_handler(
         func=lambda call: call.data in {CB_ADD_TEXT, CB_EDIT_TEXT}
@@ -90,14 +101,7 @@ def register_callback_handlers(bot):
             bot.answer_callback_query(call.id, text=MSG_NO_PENDING)
             _edit(bot, call, MSG_NO_PENDING)
             return
-        try:
-            bot.edit_message_reply_markup(
-                chat_id=call.message.chat.id,
-                message_id=call.message.message_id,
-                reply_markup=None,
-            )
-        except Exception:
-            logger.debug("could not remove story keyboard", exc_info=True)
+        _remove_inline_keyboard(bot, call)
         bot.answer_callback_query(call.id)
         bot.send_message(call.message.chat.id, MSG_ASK_CAPTION)
 
@@ -167,7 +171,19 @@ def register_callback_handlers(bot):
                 return
             clear_pending(telegram_id)
         bot.answer_callback_query(call.id, text="Опубликовано")
-        _edit(bot, call, MSG_PUBLISHED)
+        _remove_inline_keyboard(bot, call)
+        try:
+            bot.send_message(call.message.chat.id, MSG_PUBLISHED)
+            bot.send_photo(
+                call.message.chat.id,
+                story.file_id,
+                caption=story.caption,
+            )
+        except Exception:
+            logger.exception(
+                "story publish report failed: telegram_id=%s",
+                telegram_id,
+            )
 
     @bot.callback_query_handler(func=lambda call: call.data == CB_PUBLISH_NO)
     def handle_no(call):

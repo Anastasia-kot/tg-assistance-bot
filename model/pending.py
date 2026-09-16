@@ -16,9 +16,16 @@ _lock = threading.Lock()
 _pending: dict[int, PendingStory] = {}
 
 
-def set_pending(telegram_id: int, file_id: str) -> None:
+def set_pending(
+    telegram_id: int,
+    file_id: str,
+    caption: Optional[str] = None,
+) -> None:
     with _lock:
-        _pending[int(telegram_id)] = PendingStory(file_id=file_id)
+        _pending[int(telegram_id)] = PendingStory(
+            file_id=file_id,
+            caption=caption,
+        )
 
 
 def get_pending(telegram_id: int) -> Optional[PendingStory]:

@@ -42,6 +42,16 @@ def register_photo_handlers(bot):
         if not photos:
             return
         file_id = photos[-1].file_id
+        caption = (getattr(message, "caption", None) or "").strip()
+        if caption:
+            set_pending(telegram_id, file_id, caption=caption)
+            bot.send_photo(
+                message.chat.id,
+                file_id,
+                caption=caption,
+                reply_markup=preview_keyboard(),
+            )
+            return
         set_pending(telegram_id, file_id)
         bot.send_message(
             message.chat.id,

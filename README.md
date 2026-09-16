@@ -30,8 +30,8 @@ Telegram-бот на [pyTelegramBotAPI](https://github.com/eternnoir/pyTelegramB
 
 | Переменная | Назначение |
 |------------|------------|
-| `BOT_TOKEN` | токен **бота** от [@BotFather](https://t.me/BotFather). На Bothost также: `API_TOKEN`, `TELEGRAM_BOT_TOKEN`. Это токен самого чат-бота, не ключи пользователя. |
-| `PGHOST`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`, `PGPORT` | PostgreSQL (`PGPORT` по умолчанию 5432) |
+| `BOT_TOKEN` | токен бота от [@BotFather](https://t.me/BotFather). Единственный секрет, нужный чтобы процесс бота запустился. |
+| `PGHOST`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`, `PGPORT` | PostgreSQL (`PGPORT` по умолчанию 5432), для хранения ключей пользователей |
 
 `api_id` и `api_hash` пользователь присылает в чат один раз; они хранятся в БД на каждого человека. В `.env` их нет.
 

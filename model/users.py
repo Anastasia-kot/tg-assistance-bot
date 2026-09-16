@@ -1,8 +1,7 @@
 from __future__ import annotations
 
+import threading
 from typing import Any, Optional
-
-from .init import get_connection
 
 AUTH_NEED_KEYS = "need_keys"
 AUTH_NEED_PHONE = "need_phone"
@@ -10,54 +9,34 @@ AUTH_NEED_CODE = "need_code"
 AUTH_NEED_2FA = "need_2fa"
 AUTH_READY = "ready"
 
-_USER_COLUMNS = (
-    "telegram_id",
-    "api_id",
-    "api_hash",
-    "phone",
-    "session_string",
-    "phone_code_hash",
-    "auth_state",
-    "created_at",
-    "updated_at",
-)
+_lock = threading.Lock()
+_users: dict[int, dict[str, Any]] = {}
 
 
-def _row_to_user(row: tuple) -> dict[str, Any]:
-    return dict(zip(_USER_COLUMNS, row))
+def _blank(telegram_id: int) -> dict[str, Any]:
+    return {
+        "telegram_id": telegram_id,
+        "api_id": None,
+        "api_hash": None,
+        "phone": None,
+        "session_string": None,
+        "phone_code_hash": None,
+        "auth_state": AUTH_NEED_KEYS,
+    }
 
 
 def get_user(telegram_id: int) -> Optional[dict[str, Any]]:
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT telegram_id, api_id, api_hash, phone, session_string,
-                       phone_code_hash, auth_state, created_at, updated_at
-                FROM users
-                WHERE telegram_id = %s
-                """,
-                (telegram_id,),
-            )
-            row = cur.fetchone()
-    return _row_to_user(row) if row else None
+    with _lock:
+        user = _users.get(int(telegram_id))
+        return dict(user) if user else None
 
 
 def ensure_user(telegram_id: int) -> dict[str, Any]:
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO users (telegram_id, auth_state)
-                VALUES (%s, %s)
-                ON CONFLICT (telegram_id) DO NOTHING
-                """,
-                (telegram_id, AUTH_NEED_KEYS),
-            )
-        conn.commit()
-    user = get_user(telegram_id)
-    assert user is not None
-    return user
+    telegram_id = int(telegram_id)
+    with _lock:
+        if telegram_id not in _users:
+            _users[telegram_id] = _blank(telegram_id)
+        return dict(_users[telegram_id])
 
 
 def has_app_keys(user: Optional[dict[str, Any]]) -> bool:
@@ -89,47 +68,33 @@ def update_user(
     clear_session: bool = False,
     clear_phone_code_hash: bool = False,
     clear_keys: bool = False,
+    clear_phone: bool = False,
 ) -> dict[str, Any]:
-    assignments = ["updated_at = now()"]
-    params: list[Any] = []
-
-    if api_id is not None:
-        assignments.append("api_id = %s")
-        params.append(api_id)
-    if api_hash is not None:
-        assignments.append("api_hash = %s")
-        params.append(api_hash)
-    if clear_keys:
-        assignments.append("api_id = NULL")
-        assignments.append("api_hash = NULL")
-    if phone is not None:
-        assignments.append("phone = %s")
-        params.append(phone)
-    if session_string is not None:
-        assignments.append("session_string = %s")
-        params.append(session_string)
-    if clear_session:
-        assignments.append("session_string = NULL")
-    if phone_code_hash is not None:
-        assignments.append("phone_code_hash = %s")
-        params.append(phone_code_hash)
-    if clear_phone_code_hash:
-        assignments.append("phone_code_hash = NULL")
-    if auth_state is not None:
-        assignments.append("auth_state = %s")
-        params.append(auth_state)
-
-    params.append(telegram_id)
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                f"UPDATE users SET {', '.join(assignments)} WHERE telegram_id = %s",
-                params,
-            )
-        conn.commit()
-    user = get_user(telegram_id)
-    assert user is not None
-    return user
+    telegram_id = int(telegram_id)
+    with _lock:
+        user = _users.setdefault(telegram_id, _blank(telegram_id))
+        if api_id is not None:
+            user["api_id"] = api_id
+        if api_hash is not None:
+            user["api_hash"] = api_hash
+        if clear_keys:
+            user["api_id"] = None
+            user["api_hash"] = None
+        if phone is not None:
+            user["phone"] = phone
+        if clear_phone:
+            user["phone"] = None
+        if session_string is not None:
+            user["session_string"] = session_string
+        if clear_session:
+            user["session_string"] = None
+        if phone_code_hash is not None:
+            user["phone_code_hash"] = phone_code_hash
+        if clear_phone_code_hash:
+            user["phone_code_hash"] = None
+        if auth_state is not None:
+            user["auth_state"] = auth_state
+        return dict(user)
 
 
 def save_session(telegram_id: int, session_string: str) -> None:
@@ -154,24 +119,11 @@ def reset_login(
     user = ensure_user(telegram_id)
     keep_existing_keys = keep_keys and has_app_keys(user)
     next_state = AUTH_NEED_PHONE if keep_existing_keys else AUTH_NEED_KEYS
-    assignments = [
-        "session_string = NULL",
-        "phone_code_hash = NULL",
-        "auth_state = %s",
-        "updated_at = now()",
-    ]
-    params: list[Any] = [next_state]
-    if not keep_phone:
-        assignments.insert(0, "phone = NULL")
-    if not keep_existing_keys:
-        assignments.insert(0, "api_id = NULL")
-        assignments.insert(0, "api_hash = NULL")
-    params.append(telegram_id)
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                f"UPDATE users SET {', '.join(assignments)} WHERE telegram_id = %s",
-                params,
-            )
-        conn.commit()
-    return ensure_user(telegram_id)
+    return update_user(
+        telegram_id,
+        auth_state=next_state,
+        clear_session=True,
+        clear_phone_code_hash=True,
+        clear_keys=not keep_existing_keys,
+        clear_phone=not keep_phone,
+    )

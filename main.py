@@ -5,7 +5,6 @@ import telebot
 
 from config import bot_token, load_env_files
 from controller import register_handlers
-from model import run_db_check
 from version import VERSION
 
 logging.basicConfig(
@@ -23,7 +22,6 @@ if not token or ":" not in token:
 
 bot = telebot.TeleBot(token)
 
-run_db_check()
 register_handlers(bot)
 
 logger.info("starting bot polling version: %s", VERSION)

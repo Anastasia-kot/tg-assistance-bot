@@ -1,51 +1,25 @@
 from __future__ import annotations
 
+import threading
 from typing import Optional
 
-from .init import get_connection
+_lock = threading.Lock()
+_pending: dict[int, str] = {}
 
 
 def set_pending(telegram_id: int, file_id: str) -> None:
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO pending_stories (telegram_id, file_id, created_at)
-                VALUES (%s, %s, now())
-                ON CONFLICT (telegram_id) DO UPDATE
-                SET file_id = EXCLUDED.file_id,
-                    created_at = now()
-                """,
-                (telegram_id, file_id),
-            )
-        conn.commit()
+    with _lock:
+        _pending[int(telegram_id)] = file_id
 
 
 def get_pending(telegram_id: int) -> Optional[str]:
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT file_id FROM pending_stories WHERE telegram_id = %s",
-                (telegram_id,),
-            )
-            row = cur.fetchone()
-    return row[0] if row else None
+    with _lock:
+        return _pending.get(int(telegram_id))
 
 
 def pop_pending(telegram_id: int) -> Optional[str]:
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                DELETE FROM pending_stories
-                WHERE telegram_id = %s
-                RETURNING file_id
-                """,
-                (telegram_id,),
-            )
-            row = cur.fetchone()
-        conn.commit()
-    return row[0] if row else None
+    with _lock:
+        return _pending.pop(int(telegram_id), None)
 
 
 def clear_pending(telegram_id: int) -> None:

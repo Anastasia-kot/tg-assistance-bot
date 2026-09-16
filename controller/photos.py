@@ -5,8 +5,26 @@ from controller.helpers import (
     reject_if_not_private,
     telegram_id_of,
 )
-from model.pending import set_pending
-from view import MSG_ASK_PUBLISH, MSG_BUSINESS_CONNECTION_MISSING, publish_keyboard
+from model.pending import is_waiting_for_caption, set_caption, set_pending
+from view import (
+    MSG_ASK_CAPTION,
+    MSG_ASK_PUBLISH,
+    MSG_BUSINESS_CONNECTION_MISSING,
+    MSG_CAPTION_TOO_LONG,
+    preview_keyboard,
+    publish_keyboard,
+)
+
+MAX_PREVIEW_CAPTION_LENGTH = 1024
+
+
+def _is_caption_message(message) -> bool:
+    telegram_id = telegram_id_of(message)
+    return bool(
+        telegram_id is not None
+        and getattr(message, "text", None)
+        and is_waiting_for_caption(telegram_id)
+    )
 
 
 def register_photo_handlers(bot):
@@ -29,4 +47,31 @@ def register_photo_handlers(bot):
             message.chat.id,
             MSG_ASK_PUBLISH,
             reply_markup=publish_keyboard(),
+        )
+
+    @bot.message_handler(func=_is_caption_message, content_types=["text"])
+    def handle_caption(message):
+        if reject_if_not_private(bot, message):
+            return
+        telegram_id = telegram_id_of(message)
+        if telegram_id is None:
+            return
+        caption = (message.text or "").strip()
+        if not caption:
+            bot.send_message(message.chat.id, MSG_ASK_CAPTION)
+            return
+        if len(caption) > MAX_PREVIEW_CAPTION_LENGTH:
+            bot.send_message(
+                message.chat.id,
+                MSG_CAPTION_TOO_LONG.format(limit=MAX_PREVIEW_CAPTION_LENGTH),
+            )
+            return
+        story = set_caption(telegram_id, caption)
+        if story is None:
+            return
+        bot.send_photo(
+            message.chat.id,
+            story.file_id,
+            caption=story.caption,
+            reply_markup=preview_keyboard(),
         )

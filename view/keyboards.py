@@ -4,6 +4,8 @@ from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardBu
 
 CB_PUBLISH_YES = "story:yes"
 CB_PUBLISH_NO = "story:no"
+CB_ADD_TEXT = "story:add_text"
+CB_EDIT_TEXT = "story:edit_text"
 
 
 def phone_keyboard() -> ReplyKeyboardMarkup:
@@ -19,7 +21,22 @@ def remove_keyboard() -> ReplyKeyboardRemove:
 def publish_keyboard() -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup()
     markup.row(
-        InlineKeyboardButton("Да", callback_data=CB_PUBLISH_YES),
-        InlineKeyboardButton("Нет", callback_data=CB_PUBLISH_NO),
+        InlineKeyboardButton("Опубликовать без текста", callback_data=CB_PUBLISH_YES),
+    )
+    markup.row(
+        InlineKeyboardButton("Добавить текст", callback_data=CB_ADD_TEXT),
+        InlineKeyboardButton("Отменить", callback_data=CB_PUBLISH_NO),
+    )
+    return markup
+
+
+def preview_keyboard() -> InlineKeyboardMarkup:
+    markup = InlineKeyboardMarkup()
+    markup.row(
+        InlineKeyboardButton("Опубликовать", callback_data=CB_PUBLISH_YES),
+    )
+    markup.row(
+        InlineKeyboardButton("Изменить текст", callback_data=CB_EDIT_TEXT),
+        InlineKeyboardButton("Отменить", callback_data=CB_PUBLISH_NO),
     )
     return markup

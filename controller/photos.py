@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from config import business_connection_id
 from controller.helpers import (
     reject_if_not_private,
     telegram_id_of,
 )
 from model.pending import is_waiting_for_caption, set_caption, set_pending
 from view import (
+    BTN_STATUS,
     MSG_ASK_CAPTION,
     MSG_ASK_PUBLISH,
-    MSG_BUSINESS_CONNECTION_MISSING,
     MSG_CAPTION_TOO_LONG,
     preview_keyboard,
     publish_keyboard,
@@ -23,6 +22,8 @@ def _is_caption_message(message) -> bool:
     return bool(
         telegram_id is not None
         and getattr(message, "text", None)
+        and message.text.strip() != BTN_STATUS
+        and not message.text.startswith("/")
         and is_waiting_for_caption(telegram_id)
     )
 
@@ -34,9 +35,6 @@ def register_photo_handlers(bot):
             return
         telegram_id = telegram_id_of(message)
         if telegram_id is None:
-            return
-        if business_connection_id() is None:
-            bot.send_message(message.chat.id, MSG_BUSINESS_CONNECTION_MISSING)
             return
         photos = getattr(message, "photo", None) or []
         if not photos:

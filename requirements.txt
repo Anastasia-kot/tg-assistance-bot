@@ -1,5 +1,7 @@
-aiogram>=3.0.0
 python-dotenv>=1.0.0
 pyTelegramBotAPI>=4.0.0
-python-telegram-bot
-telethon>=1.36.0
+maxion @ git+https://github.com/pureaholy/maxion.git@36bbcc4469eeb8e0472bc0861fabbd091325bab8
+maxapi-python==2.4.1
+qrcode[pil]>=8.0
+requests>=2.31.0
+instagrapi>=2.1.0

@@ -1,46 +1,104 @@
 from __future__ import annotations
 
-from typing import Optional
-
-MSG_START_NEED_AUTH = (
-    "Этот бот публикует ваши фото в сторис.\n\n"
-    "Один раз пришлите api_id и api_hash с my.telegram.org (раздел API development tools) "
-    "одним сообщением, например:\n123456:0123456789abcdef0123456789abcdef"
+MSG_START_READY = (
+    "Бот готов. Пришлите фотографию и выберите, куда опубликовать сторис: "
+    "Telegram, MAX, WhatsApp, VK или Instagram."
 )
-MSG_START_READY = "Бот готов. Пришлите фотографию — спрошу, публиковать ли её в сторис."
-MSG_ASK_KEYS = (
-    "Пришлите api_id и api_hash одним сообщением в формате:\n"
-    "123456:0123456789abcdef0123456789abcdef"
-)
-MSG_BAD_KEYS = "Не получилось разобрать ключи. Нужен формат: число:хеш, например 123456:0123abcd…"
-MSG_KEYS_SAVED = "Ключи сохранены."
-MSG_ASK_PHONE = "Пришлите номер телефона в формате +7… или нажмите кнопку ниже."
-MSG_ASK_CODE = "Пришлите код, который пришёл в Telegram."
-MSG_ASK_2FA = "Пришлите облачный пароль двухэтапной проверки Telegram."
-MSG_CODE_SENT = "Код отправлен в Telegram на {phone}. Пришлите его сюда."
-MSG_AUTH_DONE = "Аккаунт подключён. Пришлите картинку для сторис."
 MSG_STATUS_READY = "Публикация сторис доступна. Можно присылать фотографии."
-MSG_STATUS_NEED = "Аккаунт ещё не подключён. Нажмите /start или /login."
-MSG_LOGOUT = "Сессия удалена. Чтобы публиковать сторис, пришлите api_id и api_hash или /login."
-MSG_ASK_PUBLISH = "Опубликовать в сторис Telegram?"
+MSG_ASK_PUBLISH = "Куда опубликовать сторис?"
 MSG_ASK_CAPTION = "Пришлите текст для сторис одним сообщением."
 MSG_CAPTION_TOO_LONG = "Текст слишком длинный. Допустимо не более {limit} символов."
-MSG_PUBLISHED = "Сториз опубликована:"
+MSG_PUBLISHED = "Сториз опубликована:\n{platforms}"
 MSG_CANCELLED = "Отменено. Пришлите новую картинку, когда будете готовы."
 MSG_NO_PENDING = "Нет картинки для публикации. Пришлите фото."
-MSG_NEED_AUTH_FOR_PHOTO = "Сначала подключите аккаунт: пришлите api_id и api_hash."
-MSG_FINISH_AUTH = "Сначала закончите подключение аккаунта."
 MSG_BUSINESS_CONNECTION_MISSING = (
     "Ошибка конфигурации: BUSINESS_CONNECTION_ID отсутствует или пуст. "
     "Добавьте идентификатор в .env и перезапустите бота."
 )
+MSG_MAX_AUTH_WARNING = (
+    "Перед подключением MAX ознакомьтесь с рисками:\n\n"
+    "• для публикации используется неофициальный внутренний API MAX;\n"
+    "• номер телефона, одноразовый код и при необходимости пароль 2FA "
+    "будут переданы этому Telegram-боту;\n"
+    "• бот получит сессионный токен с доступом к вашему MAX-аккаунту и "
+    "сохранит его на сервере;\n"
+    "• человек с доступом к серверу потенциально сможет использовать эту сессию;\n"
+    "• MAX может отозвать сессию, изменить протокол или ограничить аккаунт.\n\n"
+    "Код и пароль удаляются из чата после обработки. Подключайте только "
+    "собственный аккаунт."
+)
+MSG_MAX_CHOOSE_AUTH = (
+    "Выберите способ входа. QR рекомендуется: код из SMS и пароль передавать "
+    "боту не потребуется."
+)
+MSG_MAX_SCAN_QR = (
+    "Откройте MAX → Настройки → Устройства → Подключить устройство и "
+    "отсканируйте QR-код. Сессия появится как Android-устройство, не как web. "
+    "Код действует ограниченное время."
+)
+MSG_MAX_ASK_PHONE = "Пришлите номер MAX в формате +79001234567."
+MSG_MAX_CODE_SENT = (
+    "MAX отправил код по SMS на указанный номер. Проверьте SMS и пришлите "
+    "цифровой код сюда. Доставка может занять до минуты."
+)
+MSG_MAX_ASK_CODE = "Пришлите цифровой код из SMS."
+MSG_MAX_ASK_2FA = "Пришлите пароль двухфакторной защиты MAX."
+MSG_MAX_AUTH_DONE = "MAX-аккаунт подключён: {name}."
+MSG_MAX_AUTH_CANCELLED = "Подключение MAX отменено."
+MSG_MAX_STATUS_READY = "MAX-аккаунт подключён и сессия активна."
+MSG_MAX_STATUS_WEB = (
+    "MAX-сессия привязана к web-устройству и не публикует истории. "
+    "Выйдите через /max_logout и войдите снова по QR."
+)
+MSG_MAX_STATUS_NEED = "MAX-аккаунт не подключён. Используйте /max_login."
+MSG_MAX_LOGOUT = "MAX-сессия завершена и удалена."
+MSG_MAX_STORY_NEEDS_LOGIN = (
+    "Для публикации в MAX сначала подключите аккаунт: /max_login. "
+    "Подготовленная сторис сохранена."
+)
+MSG_WA_AUTH_WARNING = (
+    "WhatsApp-статусы публикуются через Green-API. Бот сохранит idInstance "
+    "и токен инстанса. Подключайте только собственный инстанс."
+)
+MSG_WA_ASK_INSTANCE = "Пришлите idInstance из кабинета Green-API."
+MSG_WA_ASK_TOKEN = "Пришлите apiTokenInstance. Сообщение будет удалено."
+MSG_WA_AUTH_DONE = "WhatsApp-инстанс сохранён. Состояние: {state}."
+MSG_WA_LOGOUT = "WhatsApp-подключение удалено."
+MSG_WA_STORY_NEEDS_LOGIN = (
+    "Для публикации в WhatsApp сначала подключите инстанс: /wa_login. "
+    "Подготовленная сторис сохранена."
+)
+MSG_VK_AUTH_WARNING = (
+    "Для VK нужен пользовательский access_token с правом stories. "
+    "Токен будет сохранён на сервере бота. Подключайте только свой аккаунт."
+)
+MSG_VK_ASK_TOKEN = (
+    "Пришлите access_token VK или ссылку вида "
+    "https://oauth.vk.com/blank.html#access_token=..."
+)
+MSG_VK_AUTH_DONE = "VK-аккаунт подключён: {name}."
+MSG_VK_LOGOUT = "VK-подключение удалено."
+MSG_VK_STORY_NEEDS_LOGIN = (
+    "Для публикации во VK сначала подключите аккаунт: /vk_login. "
+    "Подготовленная сторис сохранена."
+)
+MSG_IG_AUTH_WARNING = (
+    "Instagram подключается неофициальным API. Логин и пароль попадут боту, "
+    "сессия сохранится на сервере. Подключайте только свой аккаунт."
+)
+MSG_IG_ASK_USERNAME = "Пришлите логин Instagram."
+MSG_IG_ASK_PASSWORD = "Пришлите пароль Instagram. Сообщение будет удалено."
+MSG_IG_ASK_2FA = "Пришлите код двухфакторной защиты Instagram."
+MSG_IG_AUTH_DONE = "Instagram-аккаунт подключён: @{name}."
+MSG_IG_LOGOUT = "Instagram-сессия завершена и удалена."
+MSG_IG_STORY_NEEDS_LOGIN = (
+    "Для публикации в Instagram сначала подключите аккаунт: /ig_login. "
+    "Подготовленная сторис сохранена."
+)
 MSG_BAD_PHONE = "Не получилось разобрать номер. Пришлите его в формате +79001234567."
 MSG_PRIVATE_ONLY = "Бот работает только в личных сообщениях."
-MSG_UNKNOWN_COMMAND = "Неизвестная команда. Доступны /start, /login, /status, /logout."
-
-
-def mask_phone(phone: Optional[str]) -> str:
-    if not phone:
-        return "сохранённый номер"
-    digits = phone[-4:] if len(phone) >= 4 else phone
-    return f"***{digits}"
+MSG_UNKNOWN_COMMAND = (
+    "Неизвестная команда. Доступны /start, /status, "
+    "/max_login, /max_status, /max_logout, "
+    "/wa_login, /wa_logout, /vk_login, /vk_logout, /ig_login, /ig_logout."
+)

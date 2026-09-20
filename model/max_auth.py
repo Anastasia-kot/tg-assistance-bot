@@ -4,7 +4,6 @@ import threading
 from dataclasses import dataclass, replace
 from typing import Optional
 
-MAX_AUTH_CONSENT = "consent"
 MAX_AUTH_METHOD = "method"
 MAX_AUTH_QR = "qr"
 MAX_AUTH_PHONE = "phone"
@@ -25,20 +24,10 @@ _states: dict[int, MaxAuthState] = {}
 
 
 def begin_max_auth(telegram_id: int) -> MaxAuthState:
-    state = MaxAuthState(step=MAX_AUTH_CONSENT)
+    state = MaxAuthState(step=MAX_AUTH_METHOD)
     with _lock:
         _states[int(telegram_id)] = state
     return state
-
-
-def accept_max_auth_risk(telegram_id: int) -> Optional[MaxAuthState]:
-    with _lock:
-        state = _states.get(int(telegram_id))
-        if state is None or state.step != MAX_AUTH_CONSENT:
-            return None
-        updated = replace(state, step=MAX_AUTH_METHOD)
-        _states[int(telegram_id)] = updated
-        return updated
 
 
 def select_max_sms_auth(telegram_id: int) -> Optional[MaxAuthState]:

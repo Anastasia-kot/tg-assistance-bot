@@ -2,12 +2,10 @@ import unittest
 
 from model.max_auth import (
     MAX_AUTH_CODE,
-    MAX_AUTH_CONSENT,
     MAX_AUTH_METHOD,
     MAX_AUTH_PASSWORD,
     MAX_AUTH_PHONE,
     MAX_AUTH_QR,
-    accept_max_auth_risk,
     begin_max_auth,
     clear_max_auth,
     get_max_auth,
@@ -25,7 +23,6 @@ from model.pending import (
     set_pending,
     wait_for_caption,
 )
-from view import MSG_MAX_AUTH_WARNING
 
 
 class MaxAuthStateTest(unittest.TestCase):
@@ -35,8 +32,7 @@ class MaxAuthStateTest(unittest.TestCase):
         clear_max_auth(self.telegram_id)
 
     def test_auth_flow_does_not_retain_code_or_password(self):
-        self.assertEqual(begin_max_auth(self.telegram_id).step, MAX_AUTH_CONSENT)
-        self.assertEqual(accept_max_auth_risk(self.telegram_id).step, MAX_AUTH_METHOD)
+        self.assertEqual(begin_max_auth(self.telegram_id).step, MAX_AUTH_METHOD)
         self.assertEqual(select_max_sms_auth(self.telegram_id).step, MAX_AUTH_PHONE)
 
         state = set_max_code_requested(self.telegram_id, "+79001234567", "token")
@@ -48,14 +44,8 @@ class MaxAuthStateTest(unittest.TestCase):
         self.assertIsNone(state.auth_token)
         self.assertEqual(get_max_auth(self.telegram_id).track_id, "track")
 
-    def test_warning_names_private_api_and_session_risks(self):
-        self.assertIn("неофициальный", MSG_MAX_AUTH_WARNING)
-        self.assertIn("сессионный токен", MSG_MAX_AUTH_WARNING)
-        self.assertIn("ограничить аккаунт", MSG_MAX_AUTH_WARNING)
-
-    def test_qr_auth_can_be_selected_after_consent(self):
+    def test_qr_auth_can_be_selected_after_start(self):
         begin_max_auth(self.telegram_id)
-        accept_max_auth_risk(self.telegram_id)
 
         self.assertEqual(select_max_qr_auth(self.telegram_id).step, MAX_AUTH_QR)
 

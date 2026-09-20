@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from config import business_connection_id
 from model.ig_stories import has_ig_session, ig_account_label
-from model.max_stories import has_max_session, is_web_qr_session
+from model.max_stories import has_max_session
 from model.vk_stories import has_vk_session, vk_account_label
 from model.wa_stories import has_wa_session, wa_state
 
@@ -28,8 +28,6 @@ def _telegram_status() -> str:
 
 
 def _max_status(telegram_id: int) -> str:
-    if is_web_qr_session(telegram_id):
-        return "web-сессия, истории недоступны — /max_logout и вход по QR"
     if has_max_session(telegram_id):
         return f"{STATUS_CONNECTED}"
     return f"{STATUS_MISSING} — /max_login"

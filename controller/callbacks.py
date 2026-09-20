@@ -201,6 +201,13 @@ def _send_publish_report(bot, call, story, targets: frozenset[str]) -> None:
         )
 
 
+def _answer(bot, call, text: str | None = None) -> None:
+    try:
+        bot.answer_callback_query(call.id, text=text)
+    except Exception:
+        logger.debug("could not answer callback", exc_info=True)
+
+
 def register_callback_handlers(bot):
     @bot.callback_query_handler(
         func=lambda call: call.data in {CB_ADD_TEXT, CB_EDIT_TEXT}
@@ -261,8 +268,9 @@ def register_callback_handlers(bot):
                 return
             remaining_targets = requested_targets - story.published_targets
             if not remaining_targets:
-                bot.answer_callback_query(call.id, text="Уже опубликовано")
+                _answer(bot, call, "Уже опубликовано")
                 return
+            _answer(bot, call, "Публикую…")
             try:
                 file_info = bot.get_file(story.file_id)
                 image_bytes = bot.download_file(file_info.file_path)
@@ -271,7 +279,6 @@ def register_callback_handlers(bot):
                     "story media download failed: telegram_id=%s",
                     telegram_id,
                 )
-                bot.answer_callback_query(call.id, text="Ошибка публикации")
                 _edit(
                     bot,
                     call,
@@ -336,12 +343,16 @@ def register_callback_handlers(bot):
                 clear_pending(telegram_id)
 
         if is_complete:
-            bot.answer_callback_query(call.id, text="Опубликовано")
-            _remove_inline_keyboard(bot, call)
-            _send_publish_report(bot, call, story, requested_targets)
+            try:
+                _remove_inline_keyboard(bot, call)
+                _send_publish_report(bot, call, story, requested_targets)
+            except Exception:
+                logger.exception(
+                    "story publish report failed: telegram_id=%s",
+                    telegram_id,
+                )
             return
 
-        bot.answer_callback_query(call.id, text="Публикация завершилась с ошибкой")
         result_lines = []
         for target in ALL_TARGETS:
             if target not in requested_targets:

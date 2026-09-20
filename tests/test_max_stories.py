@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import tempfile
@@ -29,6 +30,7 @@ class FakeMaxClient:
     def __init__(self, path, **_kwargs):
         self.path = path
         self.session = FakeSession()
+        self.is_connected = True
         self.story_payload = None
         self.__class__.instances.append(self)
 
@@ -39,7 +41,7 @@ class FakeMaxClient:
         return instance
 
     @classmethod
-    def web(cls, path):
+    def web(cls, path, **_kwargs):
         instance = cls(path)
         instance.is_web = True
         return instance
@@ -50,8 +52,9 @@ class FakeMaxClient:
     async def disconnect(self):
         return None
 
-    async def request_code(self, phone):
+    async def request_code(self, phone, **kwargs):
         self.phone = phone
+        self.request_kwargs = kwargs
         return {"token": "auth-token"}
 
     async def sign_in(self, code, auth_token):
@@ -73,11 +76,30 @@ class FakeMaxClient:
         self.upload = (image_bytes, filename)
         return {"_type": "PHOTO", "photoToken": "photo-token"}
 
+    async def request_video_upload(self, count=1, **_kwargs):
+        return {
+            "info": [
+                {"videoId": 7, "url": "http://example", "token": "slot-token"}
+            ]
+        }
+
+    async def _post_upload(self, url, file, filename, mimetype):
+        self.upload = (file, filename)
+        return None
+
+    def _attach_waiter(self, key, value):
+        future = asyncio.get_running_loop().create_future()
+        future.set_result({"videoId": value, "token": "video-token"})
+        return future
+
+    async def _await_attach(self, future, timeout):
+        return await future
+
     async def send_story(self, **payload):
         self.story_payload = payload
         return {"storyId": 42}
 
-    async def invoke(self, opcode, payload=None):
+    async def invoke(self, opcode, payload=None, **_kwargs):
         self.story_opcode = opcode
         self.story_payload = payload
         return {"storyId": 42}
@@ -96,10 +118,17 @@ class MaxStoriesServiceTest(unittest.TestCase):
         self.client_patch = patch.object(max_stories, "MaxClient", FakeMaxClient)
         self.env_patch.start()
         self.client_patch.start()
+        self.convert_patch = patch.object(
+            max_stories,
+            "_image_to_story_mp4",
+            return_value=b"mp4",
+        )
+        self.convert_patch.start()
         FakeMaxClient.instances.clear()
         FakeMaxClient.require_password = False
 
     def tearDown(self):
+        self.convert_patch.stop()
         self.client_patch.stop()
         self.env_patch.stop()
         self.temp_dir.cleanup()
@@ -114,8 +143,31 @@ class MaxStoriesServiceTest(unittest.TestCase):
 
     def test_requests_code_and_saves_device_session(self):
         token = max_stories.request_max_login_code(1, "+79001234567")
+        client = FakeMaxClient.instances[-1]
         self.assertEqual(token, "auth-token")
-        self.assertTrue(FakeMaxClient.instances[-1].session.saved)
+        self.assertTrue(client.session.saved)
+        self.assertIsNone(client.request_kwargs["mode"])
+        self.assertEqual(
+            client.request_kwargs["auth_type"],
+            max_stories.AuthType.START_AUTH,
+        )
+
+    def test_resends_code_and_requests_call(self):
+        max_stories.request_max_login_code(1, "+79001234567", resend=True)
+        resend_client = FakeMaxClient.instances[-1]
+        self.assertIsNone(resend_client.request_kwargs["mode"])
+        self.assertEqual(
+            resend_client.request_kwargs["auth_type"],
+            max_stories.AuthType.RESEND_CODE,
+        )
+
+        max_stories.request_max_login_code(1, "+79001234567", call=True)
+        call_client = FakeMaxClient.instances[-1]
+        self.assertIsNone(call_client.request_kwargs["mode"])
+        self.assertEqual(
+            call_client.request_kwargs["auth_type"],
+            max_stories.AuthType.CALL_RESET,
+        )
 
     def test_publishes_uploaded_photo_without_caption(self):
         self._write_session(2)
@@ -123,16 +175,18 @@ class MaxStoriesServiceTest(unittest.TestCase):
         client = FakeMaxClient.instances[-1]
 
         self.assertEqual(result, {"storyId": 42})
-        self.assertEqual(client.upload, (b"image", "story.jpg"))
+        self.assertEqual(client.upload, (b"mp4", "story.mp4"))
         stories = client.story_payload["stories"]
         self.assertEqual(len(stories), 1)
         self.assertEqual(
             stories[0]["media"],
-            [{"_type": "PHOTO", "photoToken": "photo-token"}],
+            {"_type": "VIDEO", "videoId": 7, "token": "video-token"},
         )
         self.assertIn("cid", stories[0])
+        self.assertEqual(stories[0]["expiration"], 86_400_000)
+        self.assertNotIn("expiration", client.story_payload)
 
-    def test_qr_session_publishes_through_mobile_client(self):
+    def test_qr_session_cannot_publish_stories(self):
         path = max_stories.max_session_path(6)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
@@ -146,11 +200,10 @@ class MaxStoriesServiceTest(unittest.TestCase):
             encoding="utf-8",
         )
 
-        max_stories.publish_max_photo(6, b"image", None)
+        with self.assertRaises(max_stories.MaxWebSessionUnsupported):
+            max_stories.publish_max_photo(6, b"image", None)
 
-        self.assertTrue(FakeMaxClient.instances[-1].is_mobile)
-
-    def test_old_web_qr_session_requires_relogin(self):
+    def test_sms_session_publishes_through_mobile_client(self):
         path = max_stories.max_session_path(7)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
@@ -158,14 +211,15 @@ class MaxStoriesServiceTest(unittest.TestCase):
                 {
                     "token": "login-token",
                     "device_id": "device",
-                    "extra": {"auth_method": "qr"},
+                    "extra": {"auth_method": "sms", "device_type": "ANDROID"},
                 }
             ),
             encoding="utf-8",
         )
 
-        with self.assertRaises(max_stories.MaxWebSessionUnsupported):
-            max_stories.publish_max_photo(7, b"image", None)
+        max_stories.publish_max_photo(7, b"image", None)
+
+        self.assertTrue(FakeMaxClient.instances[-1].is_mobile)
 
     def test_exposes_and_confirms_2fa_step(self):
         FakeMaxClient.require_password = True

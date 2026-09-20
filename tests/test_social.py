@@ -49,7 +49,6 @@ class AccountsStatusTest(unittest.TestCase):
         with (
             patch("model.accounts.business_connection_id", return_value="conn"),
             patch("model.accounts.has_max_session", return_value=False),
-            patch("model.accounts.is_web_qr_session", return_value=False),
             patch("model.accounts.has_wa_session", return_value=False),
             patch("model.accounts.has_ig_session", return_value=False),
         ):

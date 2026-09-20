@@ -15,7 +15,6 @@ from model.max_auth import (
     MAX_AUTH_CODE,
     MAX_AUTH_PASSWORD,
     MAX_AUTH_PHONE,
-    accept_max_auth_risk,
     begin_max_auth,
     clear_max_auth,
     get_max_auth,
@@ -33,13 +32,13 @@ from model.max_stories import (
     logout_max,
     request_max_login_code,
     validate_max_session,
-    is_web_qr_session,
 )
 from view import (
-    CB_MAX_AUTH_ACCEPT,
     CB_MAX_AUTH_CANCEL,
     CB_MAX_AUTH_QR,
     CB_MAX_AUTH_SMS,
+    CB_MAX_AUTH_RESEND,
+    CB_MAX_AUTH_CALL,
     MSG_BAD_PHONE,
     MSG_MAX_ASK_2FA,
     MSG_MAX_ASK_CODE,
@@ -47,16 +46,16 @@ from view import (
     MSG_MAX_AUTH_CANCELLED,
     MSG_MAX_CHOOSE_AUTH,
     MSG_MAX_AUTH_DONE,
-    MSG_MAX_AUTH_WARNING,
     MSG_MAX_CODE_SENT,
+    MSG_MAX_CODE_RESENT,
+    MSG_MAX_CODE_CALLED,
     MSG_MAX_LOGOUT,
     MSG_MAX_SCAN_QR,
     MSG_MAX_STATUS_NEED,
     MSG_MAX_STATUS_READY,
-    MSG_MAX_STATUS_WEB,
     main_keyboard,
     max_auth_method_keyboard,
-    max_auth_warning_keyboard,
+    max_code_retry_keyboard,
     phone_keyboard,
 )
 
@@ -109,8 +108,8 @@ def register_max_login_handlers(bot) -> None:
         begin_max_auth(telegram_id)
         bot.send_message(
             message.chat.id,
-            MSG_MAX_AUTH_WARNING,
-            reply_markup=max_auth_warning_keyboard(),
+            MSG_MAX_CHOOSE_AUTH,
+            reply_markup=max_auth_method_keyboard(),
         )
 
     @bot.message_handler(commands=["max_status"])
@@ -121,9 +120,6 @@ def register_max_login_handlers(bot) -> None:
         if telegram_id is None:
             return
         with user_lock(telegram_id):
-            if is_web_qr_session(telegram_id):
-                bot.send_message(message.chat.id, MSG_MAX_STATUS_WEB)
-                return
             is_ready = validate_max_session(telegram_id)
         bot.send_message(
             message.chat.id,
@@ -144,30 +140,6 @@ def register_max_login_handlers(bot) -> None:
             message.chat.id,
             MSG_MAX_LOGOUT,
             reply_markup=main_keyboard(),
-        )
-
-    @bot.callback_query_handler(
-        func=lambda call: call.data == CB_MAX_AUTH_ACCEPT
-    )
-    def handle_max_auth_accept(call):
-        telegram_id = telegram_id_of(call)
-        if telegram_id is None:
-            bot.answer_callback_query(call.id)
-            return
-        state = accept_max_auth_risk(telegram_id)
-        if state is None:
-            bot.answer_callback_query(call.id, text="Запустите /max_login")
-            return
-        bot.answer_callback_query(call.id)
-        bot.edit_message_reply_markup(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            reply_markup=None,
-        )
-        bot.send_message(
-            call.message.chat.id,
-            MSG_MAX_CHOOSE_AUTH,
-            reply_markup=max_auth_method_keyboard(),
         )
 
     @bot.callback_query_handler(func=lambda call: call.data == CB_MAX_AUTH_QR)
@@ -235,6 +207,14 @@ def register_max_login_handlers(bot) -> None:
             reply_markup=phone_keyboard(),
         )
 
+    @bot.callback_query_handler(func=lambda call: call.data == CB_MAX_AUTH_RESEND)
+    def handle_max_auth_resend(call):
+        _retry_max_login_code(bot, call, resend=True)
+
+    @bot.callback_query_handler(func=lambda call: call.data == CB_MAX_AUTH_CALL)
+    def handle_max_auth_call(call):
+        _retry_max_login_code(bot, call, via_call=True)
+
     @bot.callback_query_handler(
         func=lambda call: call.data == CB_MAX_AUTH_CANCEL
     )
@@ -284,6 +264,42 @@ def _handle_max_auth_message(bot, message) -> None:
         _handle_max_password(bot, message, telegram_id, state.track_id)
 
 
+def _retry_max_login_code(
+    bot,
+    callback,
+    *,
+    resend: bool = False,
+    via_call: bool = False,
+) -> None:
+    telegram_id = telegram_id_of(callback)
+    if telegram_id is None:
+        bot.answer_callback_query(callback.id)
+        return
+    state = get_max_auth(telegram_id)
+    if state is None or state.step != MAX_AUTH_CODE or not state.phone:
+        bot.answer_callback_query(callback.id, text="Запустите /max_login")
+        return
+    bot.answer_callback_query(callback.id)
+    try:
+        with user_lock(telegram_id):
+            auth_token = request_max_login_code(
+                telegram_id,
+                state.phone,
+                resend=resend,
+                call=via_call,
+            )
+    except MaxStoriesError as error:
+        _send_auth_error(bot, callback.message.chat.id, error)
+        return
+    set_max_code_requested(telegram_id, state.phone, auth_token)
+    text = MSG_MAX_CODE_CALLED if via_call else MSG_MAX_CODE_RESENT
+    bot.send_message(
+        callback.message.chat.id,
+        text,
+        reply_markup=max_code_retry_keyboard(),
+    )
+
+
 def _handle_max_phone(bot, message, telegram_id: int) -> None:
     phone = _phone_from_message(message)
     try_delete(bot, message)
@@ -300,7 +316,7 @@ def _handle_max_phone(bot, message, telegram_id: int) -> None:
     bot.send_message(
         message.chat.id,
         MSG_MAX_CODE_SENT,
-        reply_markup=main_keyboard(),
+        reply_markup=max_code_retry_keyboard(),
     )
 
 

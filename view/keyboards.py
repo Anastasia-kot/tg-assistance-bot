@@ -15,10 +15,11 @@ CB_PUBLISH_NO = "story:no"
 CB_ADD_TEXT = "story:add_text"
 CB_EDIT_TEXT = "story:edit_text"
 CB_REMOVE_TEXT = "story:remove_text"
-CB_MAX_AUTH_ACCEPT = "max_auth:accept"
 CB_MAX_AUTH_CANCEL = "max_auth:cancel"
 CB_MAX_AUTH_QR = "max_auth:qr"
 CB_MAX_AUTH_SMS = "max_auth:sms"
+CB_MAX_AUTH_RESEND = "max_auth:resend"
+CB_MAX_AUTH_CALL = "max_auth:call"
 
 
 def main_keyboard() -> ReplyKeyboardMarkup:
@@ -37,16 +38,11 @@ def remove_keyboard() -> ReplyKeyboardRemove:
     return ReplyKeyboardRemove()
 
 
-def max_auth_warning_keyboard() -> InlineKeyboardMarkup:
+def max_code_retry_keyboard() -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup()
     markup.row(
-        InlineKeyboardButton(
-            "Понимаю риски и продолжить",
-            callback_data=CB_MAX_AUTH_ACCEPT,
-        ),
-    )
-    markup.row(
-        InlineKeyboardButton("Отменить", callback_data=CB_MAX_AUTH_CANCEL),
+        InlineKeyboardButton("Ещё раз SMS", callback_data=CB_MAX_AUTH_RESEND),
+        InlineKeyboardButton("Позвонить", callback_data=CB_MAX_AUTH_CALL),
     )
     return markup
 

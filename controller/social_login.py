@@ -25,7 +25,14 @@ from model.social_auth import (
     get_social_auth,
     set_social_auth,
 )
-from model.vk_stories import VkStoriesError, logout_vk, save_vk_token
+from model.vk_stories import (
+    VkStoriesError,
+    logout_vk,
+    save_vk_token,
+    validate_vk_session,
+    vk_account_label,
+    vk_oauth_url,
+)
 from model.wa_stories import WaStoriesError, logout_wa, save_wa_credentials
 from view import (
     BTN_STATUS,
@@ -37,8 +44,9 @@ from view import (
     MSG_IG_LOGOUT,
     MSG_VK_ASK_TOKEN,
     MSG_VK_AUTH_DONE,
-    MSG_VK_AUTH_WARNING,
     MSG_VK_LOGOUT,
+    MSG_VK_STATUS_NEED,
+    MSG_VK_STATUS_READY,
     MSG_WA_ASK_INSTANCE,
     MSG_WA_ASK_TOKEN,
     MSG_WA_AUTH_DONE,
@@ -81,8 +89,28 @@ def register_social_login_handlers(bot) -> None:
             return
         clear_max_auth(telegram_id)
         begin_social_auth(telegram_id, "vk", VK_TOKEN)
-        bot.send_message(message.chat.id, MSG_VK_AUTH_WARNING)
-        bot.send_message(message.chat.id, MSG_VK_ASK_TOKEN)
+        bot.send_message(
+            message.chat.id,
+            MSG_VK_ASK_TOKEN.format(url=vk_oauth_url()),
+        )
+
+    @bot.message_handler(commands=["vk_status"])
+    def handle_vk_status(message):
+        if reject_if_not_private(bot, message):
+            return
+        telegram_id = telegram_id_of(message)
+        if telegram_id is None:
+            return
+        with user_lock(telegram_id):
+            is_ready = validate_vk_session(telegram_id)
+        if not is_ready:
+            bot.send_message(message.chat.id, MSG_VK_STATUS_NEED)
+            return
+        name = vk_account_label(telegram_id) or "VK"
+        bot.send_message(
+            message.chat.id,
+            MSG_VK_STATUS_READY.format(name=name),
+        )
 
     @bot.message_handler(commands=["ig_login"])
     def handle_ig_login(message):
@@ -196,16 +224,22 @@ def _finish_wa(bot, message, telegram_id: int, instance_id: str | None, token: s
 
 def _extract_vk_token(raw: str) -> str:
     text = raw.strip()
+    if "error=" in text and "access_token=" not in text:
+        return ""
     if "access_token=" in text:
         after = text.split("access_token=", 1)[1]
-        return after.split("&", 1)[0]
+        token = after.split("&", 1)[0].strip()
+        return token
     return text
 
 
 def _finish_vk(bot, message, telegram_id: int, token_raw: str) -> None:
     token = _extract_vk_token(token_raw)
-    if not token:
-        bot.send_message(message.chat.id, MSG_VK_ASK_TOKEN)
+    if not token or len(token) < 20:
+        bot.send_message(
+            message.chat.id,
+            MSG_VK_ASK_TOKEN.format(url=vk_oauth_url()),
+        )
         return
     try:
         with user_lock(telegram_id):

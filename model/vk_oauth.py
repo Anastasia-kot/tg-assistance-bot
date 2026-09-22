@@ -15,6 +15,7 @@ from urllib.parse import urlencode
 import requests
 
 from config import vk_app_id, vk_client_secret, vk_redirect_uri
+from model.session_files import session_root
 from model.vk_stories import VkStoriesError
 
 logger = logging.getLogger("vk_oauth")
@@ -25,8 +26,6 @@ STATE_TTL_SECONDS = 600
 VK_ID_SCOPE = "vkid.personal_info"
 
 _pkce_lock = threading.Lock()
-_pkce_verifiers: dict[str, str] = {}
-
 
 class VkOAuthError(VkStoriesError):
     pass
@@ -71,7 +70,7 @@ def vk_authorize_url(telegram_id: int) -> str:
     state = encode_oauth_state(telegram_id)
     verifier, challenge = _pkce_pair()
     with _pkce_lock:
-        _pkce_verifiers[state] = verifier
+        _write_pkce(state, verifier)
     return AUTHORIZE_URL + "?" + urlencode(
         {
             "response_type": "code",
@@ -99,7 +98,7 @@ def exchange_vk_code(
     if not device_id:
         raise VkOAuthError("VK не вернул device_id. Нажмите /vk_login ещё раз.")
     with _pkce_lock:
-        verifier = _pkce_verifiers.pop(state, None)
+        verifier = _pop_pkce(state)
     if not verifier:
         raise VkOAuthError("Сессия PKCE не найдена. Нажмите /vk_login ещё раз.")
     try:
@@ -112,7 +111,6 @@ def exchange_vk_code(
                 "client_id": app_id,
                 "device_id": device_id,
                 "redirect_uri": redirect_uri,
-                "state": state,
                 "service_token": secret,
             },
             timeout=30,
@@ -168,6 +166,31 @@ def parse_vk_callback(query: dict[str, list[str]]) -> dict[str, str]:
 def _first(query: dict[str, list[str]], key: str) -> str:
     values = query.get(key) or []
     return (values[0] if values else "").strip()
+
+
+def _pkce_dir():
+    path = session_root("vk") / "pkce"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _write_pkce(state: str, verifier: str) -> None:
+    path = _pkce_dir() / f"{state}.json"
+    path.write_text(json.dumps({"verifier": verifier}), encoding="utf-8")
+    path.chmod(0o600)
+
+
+def _pop_pkce(state: str) -> str | None:
+    path = _pkce_dir() / f"{state}.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        path.unlink()
+    except (FileNotFoundError, OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    verifier = str(payload.get("verifier") or "").strip()
+    return verifier or None
 
 
 def _pkce_pair() -> tuple[str, str]:

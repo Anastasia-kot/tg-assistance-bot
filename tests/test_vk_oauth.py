@@ -1,4 +1,5 @@
 import os
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -16,6 +17,7 @@ from model.vk_oauth import (
 
 class VkOAuthTest(unittest.TestCase):
     def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
         self.env = patch.dict(
             os.environ,
             {
@@ -23,14 +25,15 @@ class VkOAuthTest(unittest.TestCase):
                 "VK_CLIENT_SECRET": "secret-app",
                 "VK_PUBLIC_BASE": "https://bot-1778084510-9776-anastasia-kot-ramble.bothost.tech",
                 "VK_OAUTH_STATE_SECRET": "state-secret",
+                "SESSION_DIR": self.temp_dir.name,
             },
             clear=False,
         )
         self.env.start()
-        vk_oauth._pkce_verifiers.clear()
 
     def tearDown(self):
         self.env.stop()
+        self.temp_dir.cleanup()
 
     def test_oauth_is_ready_with_app_credentials(self):
         self.assertTrue(vk_oauth_ready())

@@ -58,3 +58,9 @@ def vk_retry_cancel_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton("Отменить повтор", callback_data=CB_VK_RETRY_CANCEL),
     )
     return markup
+
+
+def vk_oauth_keyboard(url: str) -> InlineKeyboardMarkup:
+    markup = InlineKeyboardMarkup()
+    markup.row(InlineKeyboardButton("Открыть VK", url=url))
+    return markup

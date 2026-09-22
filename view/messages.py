@@ -29,10 +29,21 @@ MSG_ASK_PUBLISH = "Куда опубликовать сторис?"
 MSG_ASK_CAPTION = "Пришлите текст для сторис одним сообщением."
 MSG_CAPTION_TOO_LONG = "Текст слишком длинный. Допустимо не более {limit} символов."
 MSG_PUBLISHED = "Сториз опубликована:\n{platforms}"
-MSG_VK_ASK_TOKEN = (
-    "Откройте ссылку, нажмите «Разрешить», скопируйте адрес страницы "
-    "(там будет access_token=) и пришлите его сюда целиком:\n\n"
-    "{url}"
+MSG_VK_ASK_OAUTH = (
+    "Нажмите кнопку ниже, разрешите доступ приложению VK "
+    "и дождитесь сообщения здесь. Токен в чат копировать не нужно."
+)
+MSG_VK_OAUTH_NOT_CONFIGURED = (
+    "VK-приложение не настроено. Задайте VK_APP_ID и VK_CLIENT_SECRET в окружении."
+)
+MSG_VK_OAUTH_CALLBACK_OK = (
+    "<!doctype html><meta charset='utf-8'><title>VK</title>"
+    "<p>VK подключён. Это окно можно закрыть и вернуться в Telegram.</p>"
+)
+MSG_VK_OAUTH_CALLBACK_FAIL = (
+    "<!doctype html><meta charset='utf-8'><title>VK</title>"
+    "<p>Не удалось подключить VK.</p><p>{error}</p>"
+    "<p>Вернитесь в бота и нажмите /vk_login ещё раз.</p>"
 )
 MSG_VK_AUTH_DONE = "VK-аккаунт подключён: {name}."
 MSG_VK_LOGOUT = "VK-подключение удалено."

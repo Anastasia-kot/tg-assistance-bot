@@ -1,42 +1,25 @@
 from __future__ import annotations
 
-from controller.helpers import (
-    reject_if_not_private,
-    telegram_id_of,
-    try_delete,
-)
+from controller.helpers import reject_if_not_private, telegram_id_of
 from model.stories import user_lock
-from model.vk_auth import begin_vk_login, clear_vk_login, is_waiting_vk_token
+from model.vk_oauth import vk_authorize_url, vk_oauth_ready
 from model.vk_retry import cancel_vk_retry
 from model.vk_stories import (
-    VkFloodError,
-    VkStoriesError,
     check_vk_token,
     has_vk_session,
     logout_vk,
-    parse_vk_token,
-    save_vk_token,
     vk_account_label,
-    vk_oauth_url,
 )
 from view import (
-    MSG_VK_ASK_TOKEN,
-    MSG_VK_AUTH_DONE,
+    MSG_VK_ASK_OAUTH,
     MSG_VK_LOGOUT,
+    MSG_VK_OAUTH_NOT_CONFIGURED,
     MSG_VK_STATUS_NEED,
     MSG_VK_STATUS_READY,
     MSG_VK_TOKEN_OK,
     remove_keyboard,
+    vk_oauth_keyboard,
 )
-
-
-def _is_vk_token_message(message) -> bool:
-    telegram_id = telegram_id_of(message)
-    if telegram_id is None or not getattr(message, "text", None):
-        return False
-    if message.text.startswith("/"):
-        return False
-    return is_waiting_vk_token(telegram_id)
 
 
 def register_vk_login_handlers(bot) -> None:
@@ -47,10 +30,13 @@ def register_vk_login_handlers(bot) -> None:
         telegram_id = telegram_id_of(message)
         if telegram_id is None:
             return
-        begin_vk_login(telegram_id)
+        if not vk_oauth_ready():
+            bot.send_message(message.chat.id, MSG_VK_OAUTH_NOT_CONFIGURED)
+            return
         bot.send_message(
             message.chat.id,
-            MSG_VK_ASK_TOKEN.format(url=vk_oauth_url()),
+            MSG_VK_ASK_OAUTH,
+            reply_markup=vk_oauth_keyboard(vk_authorize_url(telegram_id)),
         )
 
     @bot.message_handler(commands=["vk_status"])
@@ -84,45 +70,11 @@ def register_vk_login_handlers(bot) -> None:
         telegram_id = telegram_id_of(message)
         if telegram_id is None:
             return
-        clear_vk_login(telegram_id)
         cancel_vk_retry(telegram_id)
         with user_lock(telegram_id):
             logout_vk(telegram_id)
         bot.send_message(
             message.chat.id,
             MSG_VK_LOGOUT,
-            reply_markup=remove_keyboard(),
-        )
-
-    @bot.message_handler(func=_is_vk_token_message, content_types=["text"])
-    def handle_vk_token(message):
-        if reject_if_not_private(bot, message):
-            return
-        telegram_id = telegram_id_of(message)
-        if telegram_id is None:
-            return
-        token = parse_vk_token(message.text or "")
-        try_delete(bot, message)
-        if not token or len(token) < 20:
-            bot.send_message(
-                message.chat.id,
-                MSG_VK_ASK_TOKEN.format(url=vk_oauth_url()),
-            )
-            return
-        try:
-            with user_lock(telegram_id):
-                profile = save_vk_token(telegram_id, token)
-        except VkFloodError as error:
-            clear_vk_login(telegram_id)
-            bot.send_message(message.chat.id, error.user_message)
-            return
-        except VkStoriesError as error:
-            bot.send_message(message.chat.id, error.user_message)
-            return
-        clear_vk_login(telegram_id)
-        name = f"{profile.get('first_name', '')} {profile.get('last_name', '')}".strip() or "VK"
-        bot.send_message(
-            message.chat.id,
-            MSG_VK_AUTH_DONE.format(name=name),
             reply_markup=remove_keyboard(),
         )

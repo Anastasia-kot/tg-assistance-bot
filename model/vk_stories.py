@@ -3,9 +3,7 @@ from __future__ import annotations
 import json
 import io
 import logging
-import os
 from typing import Any
-from urllib.parse import urlencode
 
 import requests
 from PIL import Image
@@ -18,8 +16,6 @@ PLATFORM = "vk"
 VK_API_VERSION = "5.199"
 VK_API_URL = "https://api.vk.ru/method/"
 LOGIN_COMMAND = "/vk_login"
-DEFAULT_VK_APP_ID = "2685278"
-VK_OAUTH_REDIRECT = "https://oauth.vk.com/blank.html"
 VK_OAUTH_SCOPE = "stories,offline"
 VK_STORIES_PERMISSION = 8_388_608
 VK_PERMISSION_BITS = {
@@ -62,21 +58,6 @@ class VkFloodError(VkStoriesError):
 class VkSessionRequired(VkStoriesError):
     def __init__(self):
         super().__init__(f"Сначала подключите аккаунт VK: {LOGIN_COMMAND}")
-
-
-def vk_oauth_url() -> str:
-    app_id = (os.getenv("VK_APP_ID") or DEFAULT_VK_APP_ID).strip() or DEFAULT_VK_APP_ID
-    return "https://oauth.vk.com/authorize?" + urlencode(
-        {
-            "client_id": app_id,
-            "display": "page",
-            "redirect_uri": VK_OAUTH_REDIRECT,
-            "scope": VK_OAUTH_SCOPE,
-            "response_type": "token",
-            "v": VK_API_VERSION,
-            "revoke": 1,
-        }
-    )
 
 
 def parse_vk_token(raw: str) -> str:
@@ -327,7 +308,7 @@ def _log_token_permissions(telegram_id: int, access_token: str) -> None:
     if not has_stories:
         logger.warning(
             "VK getAppPermissions has no stories bit; "
-            "Kate/user tokens often omit it. Checking via getPhotoUploadServer. "
+            "User tokens often omit it. Checking via getPhotoUploadServer. "
             "telegram_id=%s mask=%s scopes=%s",
             telegram_id,
             mask_int,

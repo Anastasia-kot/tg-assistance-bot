@@ -5,8 +5,9 @@ import time
 import telebot
 from requests.exceptions import ReadTimeout
 
-from config import bot_token, business_connection_id, load_env_files
+from config import bot_token, business_connection_id, load_env_files, vk_redirect_uri
 from controller import register_handlers
+from http_app import set_bot, start_http_server
 from version import VERSION
 
 logging.basicConfig(
@@ -28,7 +29,9 @@ if business_connection_id() is None:
 bot = telebot.TeleBot(token)
 
 register_handlers(bot)
-
+set_bot(bot)
+start_http_server()
+logger.info("VK redirect_uri=%s version=%s", vk_redirect_uri(), VERSION)
 logger.info("starting bot polling version: %s", VERSION)
 while True:
     try:

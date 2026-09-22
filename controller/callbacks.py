@@ -10,21 +10,49 @@ from config import business_connection_id
 from controller.helpers import telegram_id_of
 from model.pending import clear_pending, get_pending, wait_for_caption
 from model.stories import STORY_PERIOD_SECONDS, user_lock
+from model.vk_retry import (
+    MAX_ATTEMPTS,
+    RETRY_DELAY_SECONDS,
+    cancel_vk_retry,
+    schedule_vk_retry,
+)
+from model.vk_stories import VkSessionRequired, VkStoriesError, publish_vk_photo
 from view import (
     CB_ADD_TEXT,
     CB_EDIT_TEXT,
+    CB_PUBLISH_BOTH,
     CB_PUBLISH_NO,
+    CB_PUBLISH_TELEGRAM,
+    CB_PUBLISH_VK,
     CB_PUBLISH_YES,
+    CB_VK_RETRY_CANCEL,
     MSG_ASK_CAPTION,
     MSG_BUSINESS_CONNECTION_MISSING,
     MSG_CANCELLED,
     MSG_NO_PENDING,
     MSG_PUBLISHED,
+    MSG_VK_RETRY_CANCELLED,
+    MSG_VK_RETRY_SCHEDULED,
+    MSG_VK_STORY_NEEDS_LOGIN,
     preview_keyboard,
     publish_keyboard,
+    vk_retry_cancel_keyboard,
 )
 
 logger = logging.getLogger("controller.callbacks")
+
+TARGET_TELEGRAM = "telegram"
+TARGET_VK = "vk"
+PUBLISH_TARGETS = {
+    CB_PUBLISH_YES: frozenset({TARGET_TELEGRAM}),
+    CB_PUBLISH_TELEGRAM: frozenset({TARGET_TELEGRAM}),
+    CB_PUBLISH_VK: frozenset({TARGET_VK}),
+    CB_PUBLISH_BOTH: frozenset({TARGET_TELEGRAM, TARGET_VK}),
+}
+TARGET_NAMES = {
+    TARGET_TELEGRAM: "Telegram",
+    TARGET_VK: "VK",
+}
 
 
 def _telegram_error_message(error: ApiTelegramException) -> str:
@@ -53,6 +81,22 @@ def _publish_business_photo(
         active_period=STORY_PERIOD_SECONDS,
         caption=caption,
     )
+
+
+def _publish_target(
+    bot,
+    target: str,
+    telegram_id: int,
+    image_bytes: bytes,
+    caption: str | None,
+) -> None:
+    if target == TARGET_VK:
+        publish_vk_photo(telegram_id, image_bytes, caption)
+        return
+    connection_id = business_connection_id()
+    if connection_id is None:
+        raise VkStoriesError(MSG_BUSINESS_CONNECTION_MISSING)
+    _publish_business_photo(bot, connection_id, image_bytes, caption)
 
 
 def _edit(bot, call, text: str, reply_markup=None) -> None:
@@ -87,6 +131,10 @@ def _remove_inline_keyboard(bot, call) -> None:
         logger.debug("could not remove story keyboard", exc_info=True)
 
 
+def _story_keyboard(caption: str | None):
+    return preview_keyboard() if caption else publish_keyboard()
+
+
 def register_callback_handlers(bot):
     @bot.callback_query_handler(
         func=lambda call: call.data in {CB_ADD_TEXT, CB_EDIT_TEXT}
@@ -105,75 +153,117 @@ def register_callback_handlers(bot):
         bot.answer_callback_query(call.id)
         bot.send_message(call.message.chat.id, MSG_ASK_CAPTION)
 
-    @bot.callback_query_handler(func=lambda call: call.data == CB_PUBLISH_YES)
-    def handle_yes(call):
+    @bot.callback_query_handler(
+        func=lambda call: call.data in PUBLISH_TARGETS
+    )
+    def handle_publish(call):
         telegram_id = telegram_id_of(call)
         if telegram_id is None:
             bot.answer_callback_query(call.id)
             return
+        targets = PUBLISH_TARGETS[call.data]
+        bot.answer_callback_query(call.id, text="Публикую…")
         with user_lock(telegram_id):
-            connection_id = business_connection_id()
-            if connection_id is None:
-                bot.answer_callback_query(call.id, text="Ошибка конфигурации")
-                _edit(bot, call, MSG_BUSINESS_CONNECTION_MISSING)
-                return
             story = get_pending(telegram_id)
             if story is None:
-                bot.answer_callback_query(call.id, text=MSG_NO_PENDING)
                 _edit(bot, call, MSG_NO_PENDING)
                 return
             try:
                 file_info = bot.get_file(story.file_id)
                 image_bytes = bot.download_file(file_info.file_path)
-                _publish_business_photo(
-                    bot,
-                    connection_id,
-                    image_bytes,
-                    story.caption,
-                )
-            except ApiTelegramException as error:
-                logger.error(
-                    "story publish rejected: telegram_id=%s, "
-                    "business_connection_id_suffix=%s, error_code=%s, description=%s",
-                    telegram_id,
-                    connection_id[-6:],
-                    error.error_code,
-                    error.description,
-                )
-                bot.answer_callback_query(call.id, text="Telegram отклонил публикацию")
-                retry_keyboard = (
-                    preview_keyboard() if story.caption else publish_keyboard()
-                )
-                _edit(
-                    bot,
-                    call,
-                    _telegram_error_message(error),
-                    reply_markup=retry_keyboard,
-                )
-                return
             except Exception:
                 logger.exception(
-                    "story publish failed: telegram_id=%s, "
-                    "business_connection_id_suffix=%s",
+                    "story download failed: telegram_id=%s",
                     telegram_id,
-                    connection_id[-6:],
                 )
-                bot.answer_callback_query(call.id, text="Ошибка публикации")
                 _edit(
                     bot,
                     call,
-                    "Не удалось опубликовать сторис из-за внутренней ошибки. "
-                    "Подробности записаны в журнал.",
-                    reply_markup=(
-                        preview_keyboard() if story.caption else publish_keyboard()
-                    ),
+                    "Не удалось скачать фото для публикации. Пришлите картинку ещё раз.",
+                    reply_markup=_story_keyboard(story.caption),
                 )
                 return
+            published = []
+            for target in targets:
+                try:
+                    _publish_target(
+                        bot,
+                        target,
+                        telegram_id,
+                        image_bytes,
+                        story.caption,
+                    )
+                    published.append(TARGET_NAMES[target])
+                except VkSessionRequired:
+                    bot.send_message(call.message.chat.id, MSG_VK_STORY_NEEDS_LOGIN)
+                except ApiTelegramException as error:
+                    logger.error(
+                        "story publish rejected: telegram_id=%s, target=%s, "
+                        "error_code=%s, description=%s",
+                        telegram_id,
+                        target,
+                        error.error_code,
+                        error.description,
+                    )
+                    _edit(
+                        bot,
+                        call,
+                        _telegram_error_message(error),
+                        reply_markup=_story_keyboard(story.caption),
+                    )
+                    return
+                except VkStoriesError as error:
+                    if target == TARGET_VK and error.retryable:
+                        scheduled = schedule_vk_retry(
+                            bot,
+                            telegram_id,
+                            call.message.chat.id,
+                            story.file_id,
+                            story.caption,
+                            1,
+                        )
+                        if scheduled:
+                            bot.send_message(
+                                call.message.chat.id,
+                                MSG_VK_RETRY_SCHEDULED.format(
+                                    minutes=RETRY_DELAY_SECONDS // 60,
+                                    attempt=1,
+                                    max_attempts=MAX_ATTEMPTS,
+                                    error=error.user_message,
+                                ),
+                                reply_markup=vk_retry_cancel_keyboard(),
+                            )
+                            continue
+                    _edit(
+                        bot,
+                        call,
+                        error.user_message,
+                        reply_markup=_story_keyboard(story.caption),
+                    )
+                    return
+                except Exception:
+                    logger.exception(
+                        "story publish failed: telegram_id=%s, target=%s",
+                        telegram_id,
+                        target,
+                    )
+                    _edit(
+                        bot,
+                        call,
+                        "Не удалось опубликовать сторис из-за внутренней ошибки. "
+                        "Подробности записаны в журнал.",
+                        reply_markup=_story_keyboard(story.caption),
+                    )
+                    return
+            if not published:
+                return
             clear_pending(telegram_id)
-        bot.answer_callback_query(call.id, text="Опубликовано")
         _remove_inline_keyboard(bot, call)
         try:
-            bot.send_message(call.message.chat.id, MSG_PUBLISHED)
+            bot.send_message(
+                call.message.chat.id,
+                MSG_PUBLISHED.format(platforms="\n".join(published)),
+            )
             bot.send_photo(
                 call.message.chat.id,
                 story.file_id,
@@ -192,5 +282,23 @@ def register_callback_handlers(bot):
             bot.answer_callback_query(call.id)
             return
         clear_pending(telegram_id)
+        cancel_vk_retry(telegram_id)
         bot.answer_callback_query(call.id, text="Отменено")
         _edit(bot, call, MSG_CANCELLED)
+
+    @bot.callback_query_handler(func=lambda call: call.data == CB_VK_RETRY_CANCEL)
+    def handle_vk_retry_cancel(call):
+        telegram_id = telegram_id_of(call)
+        if telegram_id is None:
+            bot.answer_callback_query(call.id)
+            return
+        cancelled = cancel_vk_retry(telegram_id)
+        bot.answer_callback_query(
+            call.id,
+            text="Отменено" if cancelled else "Повтора нет",
+        )
+        _edit(
+            bot,
+            call,
+            MSG_VK_RETRY_CANCELLED if cancelled else "Автоповтор VK уже не запланирован.",
+        )

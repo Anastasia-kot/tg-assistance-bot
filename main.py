@@ -1,7 +1,9 @@
 import logging
 import sys
+import time
 
 import telebot
+from requests.exceptions import ReadTimeout
 
 from config import bot_token, business_connection_id, load_env_files
 from controller import register_handlers
@@ -28,13 +30,20 @@ bot = telebot.TeleBot(token)
 register_handlers(bot)
 
 logger.info("starting bot polling version: %s", VERSION)
-bot.polling(
-    none_stop=True,
-    interval=0,
-    allowed_updates=[
-        "message",
-        "callback_query",
-        "business_connection",
-        "business_message",
-    ],
-)
+while True:
+    try:
+        bot.polling(
+            none_stop=True,
+            interval=0,
+            timeout=20,
+            long_polling_timeout=20,
+            allowed_updates=[
+                "message",
+                "callback_query",
+                "business_connection",
+                "business_message",
+            ],
+        )
+    except ReadTimeout:
+        logger.warning("Telegram long poll timed out, retrying")
+        time.sleep(2)

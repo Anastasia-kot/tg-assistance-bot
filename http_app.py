@@ -9,7 +9,12 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from model.stories import user_lock
-from model.vk_oauth import VkOAuthError, decode_oauth_state, exchange_vk_code
+from model.vk_oauth import (
+    VkOAuthError,
+    decode_oauth_state,
+    exchange_vk_code,
+    parse_vk_callback,
+)
 from model.vk_stories import VkFloodError, VkStoriesError, save_vk_token, vk_account_label
 from view.messages import MSG_VK_AUTH_DONE, MSG_VK_OAUTH_CALLBACK_FAIL, MSG_VK_OAUTH_CALLBACK_OK
 
@@ -48,20 +53,30 @@ class VkHttpHandler(BaseHTTPRequestHandler):
         self._send(404, "text/plain; charset=utf-8", "not found")
 
     def _handle_vk_callback(self, query: dict[str, list[str]]) -> None:
-        error = _first(query, "error")
+        try:
+            callback = parse_vk_callback(query)
+        except VkOAuthError as auth_error:
+            self._fail(auth_error.user_message)
+            return
+        error = callback.get("error") or ""
         if error:
-            description = _first(query, "error_description") or error
+            description = callback.get("error_description") or error
             self._fail(f"VK отклонил вход: {description}")
             return
-        code = _first(query, "code")
-        state = _first(query, "state")
+        code = callback.get("code") or ""
+        state = callback.get("state") or ""
+        device_id = callback.get("device_id") or ""
         if not code or not state:
             self._fail("Нет code или state. Нажмите /vk_login в боте ещё раз.")
             return
         telegram_id = None
         try:
             telegram_id = decode_oauth_state(state)
-            token = exchange_vk_code(code)["access_token"]
+            token = exchange_vk_code(
+                code,
+                device_id=device_id,
+                state=state,
+            )["access_token"]
             with user_lock(telegram_id):
                 save_vk_token(telegram_id, token)
         except VkFloodError as flood_error:
@@ -109,8 +124,3 @@ class VkHttpHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
         self.wfile.write(payload)
-
-
-def _first(query: dict[str, list[str]], key: str) -> str:
-    values = query.get(key) or []
-    return (values[0] if values else "").strip()

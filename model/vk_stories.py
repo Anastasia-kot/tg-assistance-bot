@@ -73,7 +73,7 @@ def parse_vk_token(raw: str) -> str:
 def save_vk_token(telegram_id: int, access_token: str) -> dict[str, Any]:
     try:
         profile = _users_get(access_token)
-    except VkFloodError:
+    except VkStoriesError as error:
         write_session(
             PLATFORM,
             telegram_id,
@@ -84,10 +84,13 @@ def save_vk_token(telegram_id: int, access_token: str) -> dict[str, Any]:
             },
         )
         logger.warning(
-            "VK users.get flooded while saving token: telegram_id=%s, token kept",
+            "VK users.get failed while saving token: telegram_id=%s kept error=%s",
             telegram_id,
+            error.user_message,
         )
-        raise
+        if isinstance(error, VkFloodError):
+            raise
+        return {"id": None, "first_name": "VK", "last_name": ""}
     write_session(
         PLATFORM,
         telegram_id,

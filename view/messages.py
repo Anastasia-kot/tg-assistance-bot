@@ -90,7 +90,10 @@ MSG_UNKNOWN_COMMAND = (
 
 
 def accounts_message(intro: str, statuses: list[PlatformStatus]) -> str:
-    lines = [intro, "", MSG_ACCOUNTS_HEADER]
+    lines: list[str] = []
+    if intro:
+        lines.extend([intro, ""])
+    lines.append(MSG_ACCOUNTS_HEADER)
     for status in statuses:
         mark = "✅" if status.connected else "❌"
         lines.append(f"{mark} {status.title}: {status.detail}")

@@ -33,6 +33,7 @@ from view import (
     MSG_BAD_PHONE,
     MSG_CODE_SENT,
     MSG_KEYS_SAVED,
+    main_keyboard,
     mask_phone,
     phone_keyboard,
     remove_keyboard,
@@ -96,14 +97,14 @@ def _handle_login_message(bot, message) -> None:
         return
     user = ensure_user(telegram_id)
     if is_ready(user):
-        bot.send_message(message.chat.id, MSG_AUTH_DONE, reply_markup=remove_keyboard())
+        bot.send_message(message.chat.id, MSG_AUTH_DONE, reply_markup=main_keyboard())
         return
 
     with user_lock(telegram_id):
         user = ensure_user(telegram_id)
         state = user.get("auth_state") or AUTH_NEED_KEYS
         if state == AUTH_READY:
-            bot.send_message(message.chat.id, MSG_AUTH_DONE, reply_markup=remove_keyboard())
+            bot.send_message(message.chat.id, MSG_AUTH_DONE, reply_markup=main_keyboard())
             return
         if not has_app_keys(user) or state == AUTH_NEED_KEYS:
             _handle_keys(bot, message, telegram_id)
@@ -193,7 +194,7 @@ def _handle_code_or_new_phone(bot, message, telegram_id: int, user: dict) -> Non
         return
 
     mark_ready(telegram_id, new_session)
-    bot.send_message(message.chat.id, MSG_AUTH_DONE, reply_markup=remove_keyboard())
+    bot.send_message(message.chat.id, MSG_AUTH_DONE, reply_markup=main_keyboard())
 
 
 def _handle_password(bot, message, telegram_id: int, user: dict) -> None:
@@ -214,4 +215,4 @@ def _handle_password(bot, message, telegram_id: int, user: dict) -> None:
         bot.send_message(message.chat.id, exc.user_message)
         return
     mark_ready(telegram_id, new_session)
-    bot.send_message(message.chat.id, MSG_AUTH_DONE, reply_markup=remove_keyboard())
+    bot.send_message(message.chat.id, MSG_AUTH_DONE, reply_markup=main_keyboard())

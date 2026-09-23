@@ -13,6 +13,7 @@ from view import (
     MSG_VK_LOGOUT,
     accounts_keyboard,
     accounts_message,
+    main_keyboard,
 )
 
 
@@ -21,11 +22,23 @@ def account_statuses(telegram_id: int):
     return platform_statuses(telegram_id, vk_login_url=login_url)
 
 
-def send_accounts_panel(bot, chat_id: int, telegram_id: int, *, intro: str) -> None:
+def send_accounts_panel(
+    bot,
+    chat_id: int,
+    telegram_id: int,
+    *,
+    intro: str,
+    with_start_keyboard: bool = False,
+) -> None:
     statuses = account_statuses(telegram_id)
+    if with_start_keyboard:
+        bot.send_message(chat_id, intro, reply_markup=main_keyboard())
+        text = accounts_message("", statuses)
+    else:
+        text = accounts_message(intro, statuses)
     bot.send_message(
         chat_id,
-        accounts_message(intro, statuses),
+        text,
         reply_markup=accounts_keyboard(statuses),
     )
 

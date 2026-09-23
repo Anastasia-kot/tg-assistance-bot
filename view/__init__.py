@@ -1,4 +1,5 @@
 from .keyboards import (
+    BTN_START,
     CB_ACC_TG_LOGIN,
     CB_ACC_TG_LOGOUT,
     CB_ACC_VK_LOGIN,
@@ -12,6 +13,7 @@ from .keyboards import (
     is_locked_callback,
     is_toggle_callback,
     locked_platform_from_callback,
+    main_keyboard,
     phone_keyboard,
     preview_keyboard,
     publish_keyboard,
@@ -68,6 +70,7 @@ from .messages import (
 )
 
 __all__ = [
+    "BTN_START",
     "CB_ACC_TG_LOGIN",
     "CB_ACC_TG_LOGOUT",
     "CB_ACC_VK_LOGIN",
@@ -124,6 +127,7 @@ __all__ = [
     "is_locked_callback",
     "is_toggle_callback",
     "locked_platform_from_callback",
+    "main_keyboard",
     "mask_phone",
     "phone_keyboard",
     "preview_keyboard",

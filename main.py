@@ -27,6 +27,20 @@ bot = telebot.TeleBot(token)
 
 register_handlers(bot)
 set_bot(bot)
+try:
+    bot.set_my_commands(
+        [
+            telebot.types.BotCommand("start", "Открыть меню подключений"),
+            telebot.types.BotCommand("status", "Статус соцсетей"),
+            telebot.types.BotCommand("login", "Подключить Telegram"),
+            telebot.types.BotCommand("logout", "Выйти из Telegram"),
+            telebot.types.BotCommand("vk_login", "Подключить VK"),
+            telebot.types.BotCommand("vk_logout", "Выйти из VK"),
+            telebot.types.BotCommand("vk_status", "Статус VK"),
+        ]
+    )
+except Exception:
+    logger.exception("failed to set bot commands menu")
 logger.info("VK redirect_uri=%s version=%s", vk_redirect_uri(), VERSION)
 logger.info("starting bot polling version: %s", VERSION)
 start_polling_thread(bot)

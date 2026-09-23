@@ -27,7 +27,15 @@ class AccountsUiTest(unittest.TestCase):
         self.assertIn("✅ Telegram: бизнес", text)
         self.assertIn("❌ VK: не подключено", text)
 
-    def test_accounts_keyboard_has_login_and_logout(self):
+    def test_accounts_message_skips_empty_intro(self):
+        text = accounts_message(
+            "",
+            [PlatformStatus("telegram", "Telegram", True, "бизнес")],
+        )
+        self.assertTrue(text.startswith("Соцсети\n"))
+        self.assertNotIn("\n\n", text)
+
+    def test_accounts_keyboard_labels_include_platform(self):
         markup = accounts_keyboard(
             [
                 PlatformStatus("telegram", "Telegram", True, "бизнес"),
@@ -41,10 +49,28 @@ class AccountsUiTest(unittest.TestCase):
             ]
         )
         labels = [button.text for row in markup.keyboard for button in row]
-        self.assertEqual(labels.count("Войти"), 2)
-        self.assertEqual(labels.count("Выйти"), 2)
+        self.assertEqual(
+            labels,
+            [
+                "Войти в Telegram",
+                "Выйти из Telegram",
+                "Войти в VK",
+                "Выйти из VK",
+            ],
+        )
         vk_login = markup.keyboard[1][0]
         self.assertEqual(vk_login.url, "https://id.vk.ru/authorize")
+
+    def test_main_keyboard_has_start(self):
+        from view.keyboards import BTN_START, main_keyboard
+
+        markup = main_keyboard()
+        labels = [
+            button["text"] if isinstance(button, dict) else button.text
+            for row in markup.keyboard
+            for button in row
+        ]
+        self.assertEqual(labels, [BTN_START])
 
     def test_publish_checklist_locks_unauthorized(self):
         story = set_pending(1, "file", selected=frozenset({PLATFORM_TELEGRAM}))

@@ -21,9 +21,17 @@ CB_ACC_TG_LOGOUT = "acc:telegram:logout"
 CB_ACC_VK_LOGOUT = "acc:vk:logout"
 CB_ACC_VK_LOGIN = "acc:vk:login"
 
+BTN_START = "Старт"
+
 EMOJI_CHECKED = "✅"
 EMOJI_UNCHECKED = "⬜"
 EMOJI_LOCKED = "🔒"
+
+
+def main_keyboard() -> ReplyKeyboardMarkup:
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add(KeyboardButton(BTN_START))
+    return markup
 
 
 def phone_keyboard() -> ReplyKeyboardMarkup:
@@ -57,7 +65,7 @@ def accounts_keyboard(statuses: list[PlatformStatus]) -> InlineKeyboardMarkup:
     for status in statuses:
         login = _login_button(status)
         logout = InlineKeyboardButton(
-            "Выйти",
+            f"Выйти из {status.title}",
             callback_data=(
                 CB_ACC_VK_LOGOUT if status.key == "vk" else CB_ACC_TG_LOGOUT
             ),
@@ -127,7 +135,8 @@ def vk_oauth_keyboard(url: str) -> InlineKeyboardMarkup:
 
 
 def _login_button(status: PlatformStatus) -> InlineKeyboardButton:
+    label = f"Войти в {status.title}"
     if status.key == "vk" and status.login_url:
-        return InlineKeyboardButton("Войти", url=status.login_url)
+        return InlineKeyboardButton(label, url=status.login_url)
     callback = CB_ACC_VK_LOGIN if status.key == "vk" else CB_ACC_TG_LOGIN
-    return InlineKeyboardButton("Войти", callback_data=callback)
+    return InlineKeyboardButton(label, callback_data=callback)

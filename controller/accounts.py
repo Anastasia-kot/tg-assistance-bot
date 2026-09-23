@@ -13,6 +13,8 @@ from view import (
     MSG_VK_LOGOUT,
     accounts_keyboard,
     accounts_message,
+    account_info_key_from_callback,
+    is_account_info_callback,
     main_keyboard,
 )
 
@@ -57,6 +59,19 @@ def refresh_accounts_panel(bot, call, telegram_id: int, *, intro: str) -> None:
 
 
 def register_account_handlers(bot) -> None:
+    @bot.callback_query_handler(func=lambda call: is_account_info_callback(call.data))
+    def handle_account_info(call):
+        telegram_id = telegram_id_of(call)
+        if telegram_id is None:
+            bot.answer_callback_query(call.id)
+            return
+        key = account_info_key_from_callback(call.data or "")
+        detail = next(
+            (item.detail for item in account_statuses(telegram_id) if item.key == key),
+            None,
+        )
+        bot.answer_callback_query(call.id, text=detail or "Нет данных", show_alert=True)
+
     @bot.callback_query_handler(func=lambda call: call.data == "acc:telegram:login")
     def handle_tg_login(call):
         bot.answer_callback_query(call.id, text=MSG_TG_LOGIN_HINT, show_alert=True)

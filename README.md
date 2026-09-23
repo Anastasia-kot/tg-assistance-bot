@@ -33,8 +33,14 @@ Telegram-бот на [pyTelegramBotAPI](https://github.com/eternnoir/pyTelegramB
 
 | Переменная | Назначение |
 |------------|------------|
-| `BOT_TOKEN` | токен бота от [@BotFather](https://t.me/BotFather). Единственный секрет для запуска. |
+| `BOT_TOKEN` | токен бота от [@BotFather](https://t.me/BotFather). |
 | `BUSINESS_CONNECTION_ID` | идентификатор подключения Telegram Business для публикации сторис. |
+| `VK_APP_ID` / `VK_CLIENT_SECRET` | приложение VK ID для OAuth. |
+| `VK_PUBLIC_BASE` или `DOMAIN` | публичный HTTPS-базовый URL бота (Bothost задаёт `DOMAIN`). Redirect: `{base}/vk/callback`. |
+| `VK_REDIRECT_URI` | полный redirect URI, если нужен путь не `/vk/callback`. |
+| `PORT` | порт HTTP (Bothost, обычно `3000`); должен совпадать с портом в панели. |
+
+Trusted redirect URI в кабинете VK ID должен совпадать с `VK_REDIRECT_URI` / `{DOMAIN}/vk/callback`.
 
 Файл `.env` подхватывается через `python-dotenv`.
 

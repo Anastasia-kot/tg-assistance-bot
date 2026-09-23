@@ -1,7 +1,7 @@
 import logging
 import sys
 
-from config import bot_token, business_connection_id, load_env_files, vk_redirect_uri
+from config import bot_token, business_connection_id, load_env_files, vk_public_base, vk_redirect_uri
 from controller import register_handlers
 from http_app import serve_http, set_bot, start_polling_thread
 from version import VERSION
@@ -41,7 +41,12 @@ try:
     )
 except Exception:
     logger.exception("failed to set bot commands menu")
-logger.info("VK redirect_uri=%s version=%s", vk_redirect_uri(), VERSION)
+logger.info(
+    "VK public_base=%s redirect_uri=%s version=%s",
+    vk_public_base(),
+    vk_redirect_uri(),
+    VERSION,
+)
 logger.info("starting bot polling version: %s", VERSION)
 start_polling_thread(bot)
 serve_http()

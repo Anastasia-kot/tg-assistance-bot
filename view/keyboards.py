@@ -20,12 +20,15 @@ CB_ACC_TG_LOGIN = "acc:telegram:login"
 CB_ACC_TG_LOGOUT = "acc:telegram:logout"
 CB_ACC_VK_LOGOUT = "acc:vk:logout"
 CB_ACC_VK_LOGIN = "acc:vk:login"
+CB_ACC_INFO_PREFIX = "acc:info:"
 
 BTN_START = "Старт"
 
 EMOJI_CHECKED = "✅"
 EMOJI_UNCHECKED = "⬜"
 EMOJI_LOCKED = "🔒"
+EMOJI_CONNECTED = "✅"
+EMOJI_DISCONNECTED = "❌"
 
 
 def main_keyboard() -> ReplyKeyboardMarkup:
@@ -52,6 +55,14 @@ def is_locked_callback(data: str | None) -> bool:
     return bool(data and data.startswith(CB_LOCKED_PREFIX))
 
 
+def is_account_info_callback(data: str | None) -> bool:
+    return bool(data and data.startswith(CB_ACC_INFO_PREFIX))
+
+
+def account_info_key_from_callback(data: str) -> str:
+    return data[len(CB_ACC_INFO_PREFIX) :]
+
+
 def toggle_platform_from_callback(data: str) -> str:
     return data[len(CB_TOGGLE_PREFIX) :]
 
@@ -63,14 +74,15 @@ def locked_platform_from_callback(data: str) -> str:
 def accounts_keyboard(statuses: list[PlatformStatus]) -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup()
     for status in statuses:
-        login = _login_button(status)
-        logout = InlineKeyboardButton(
-            f"Выйти из {status.title}",
-            callback_data=(
-                CB_ACC_VK_LOGOUT if status.key == "vk" else CB_ACC_TG_LOGOUT
-            ),
+        mark = EMOJI_CONNECTED if status.connected else EMOJI_DISCONNECTED
+        status_button = InlineKeyboardButton(
+            f"{mark} {status.title}",
+            callback_data=f"{CB_ACC_INFO_PREFIX}{status.key}",
         )
-        markup.row(login, logout)
+        action = (
+            _logout_button(status) if status.connected else _login_button(status)
+        )
+        markup.row(status_button, action)
     return markup
 
 
@@ -140,3 +152,11 @@ def _login_button(status: PlatformStatus) -> InlineKeyboardButton:
         return InlineKeyboardButton(label, url=status.login_url)
     callback = CB_ACC_VK_LOGIN if status.key == "vk" else CB_ACC_TG_LOGIN
     return InlineKeyboardButton(label, callback_data=callback)
+
+
+def _logout_button(status: PlatformStatus) -> InlineKeyboardButton:
+    callback = CB_ACC_VK_LOGOUT if status.key == "vk" else CB_ACC_TG_LOGOUT
+    return InlineKeyboardButton(
+        f"Выйти из {status.title}",
+        callback_data=callback,
+    )

@@ -50,6 +50,24 @@ class VkOAuthTest(unittest.TestCase):
         self.assertNotIn("oauth.vk.com", url)
         self.assertNotIn("stories", url)
 
+    def test_public_base_prefers_bothost_domain(self):
+        from config import vk_public_base, vk_redirect_uri
+
+        with patch.dict(
+            os.environ,
+            {
+                "DOMAIN": "bot-live-user.bothost.tech",
+            },
+            clear=False,
+        ):
+            os.environ.pop("VK_PUBLIC_BASE", None)
+            os.environ.pop("VK_REDIRECT_URI", None)
+            self.assertEqual(vk_public_base(), "https://bot-live-user.bothost.tech")
+            self.assertEqual(
+                vk_redirect_uri(),
+                "https://bot-live-user.bothost.tech/vk/callback",
+            )
+
     def test_state_roundtrip(self):
         now = 1_700_000_000
         state = encode_oauth_state(42, now=now)

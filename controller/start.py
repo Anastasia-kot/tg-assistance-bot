@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from config import business_connection_id
+from controller.accounts import send_accounts_panel
 from controller.helpers import (
     reject_if_not_private,
     telegram_id_of,
@@ -10,7 +10,6 @@ from model.users import ensure_user, has_app_keys, reset_login
 from view import (
     MSG_ASK_KEYS,
     MSG_ASK_PHONE,
-    MSG_BUSINESS_CONNECTION_MISSING,
     MSG_LOGOUT,
     MSG_START_READY,
     MSG_STATUS_READY,
@@ -28,14 +27,7 @@ def register_start_handlers(bot):
         telegram_id = telegram_id_of(message)
         if telegram_id is None:
             return
-        if business_connection_id() is None:
-            bot.send_message(message.chat.id, MSG_BUSINESS_CONNECTION_MISSING)
-            return
-        bot.send_message(
-            message.chat.id,
-            MSG_START_READY,
-            reply_markup=remove_keyboard(),
-        )
+        send_accounts_panel(bot, message.chat.id, telegram_id, intro=MSG_START_READY)
 
     @bot.message_handler(commands=["login"])
     def handle_login(message):
@@ -75,10 +67,7 @@ def register_start_handlers(bot):
         telegram_id = telegram_id_of(message)
         if telegram_id is None:
             return
-        if business_connection_id() is None:
-            bot.send_message(message.chat.id, MSG_BUSINESS_CONNECTION_MISSING)
-            return
-        bot.send_message(message.chat.id, MSG_STATUS_READY)
+        send_accounts_panel(bot, message.chat.id, telegram_id, intro=MSG_STATUS_READY)
 
     @bot.message_handler(
         func=lambda m: bool(getattr(m, "text", None)) and m.text.startswith("/")

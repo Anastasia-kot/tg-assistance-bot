@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from config import business_connection_id
 from controller.helpers import (
     reject_if_not_private,
     telegram_id_of,
 )
 from model.pending import is_waiting_for_caption, set_caption, set_pending
+from model.platforms import default_selected
 from view import (
     MSG_ASK_CAPTION,
     MSG_ASK_PUBLISH,
-    MSG_BUSINESS_CONNECTION_MISSING,
     MSG_CAPTION_TOO_LONG,
     preview_keyboard,
     publish_keyboard,
@@ -35,28 +34,31 @@ def register_photo_handlers(bot):
         telegram_id = telegram_id_of(message)
         if telegram_id is None:
             return
-        if business_connection_id() is None:
-            bot.send_message(message.chat.id, MSG_BUSINESS_CONNECTION_MISSING)
-            return
         photos = getattr(message, "photo", None) or []
         if not photos:
             return
         file_id = photos[-1].file_id
         caption = (getattr(message, "caption", None) or "").strip()
+        selected = default_selected(telegram_id)
         if caption:
-            set_pending(telegram_id, file_id, caption=caption)
+            story = set_pending(
+                telegram_id,
+                file_id,
+                caption=caption,
+                selected=selected,
+            )
             bot.send_photo(
                 message.chat.id,
                 file_id,
                 caption=caption,
-                reply_markup=preview_keyboard(),
+                reply_markup=preview_keyboard(story, selected),
             )
             return
-        set_pending(telegram_id, file_id)
+        story = set_pending(telegram_id, file_id, selected=selected)
         bot.send_message(
             message.chat.id,
             MSG_ASK_PUBLISH,
-            reply_markup=publish_keyboard(),
+            reply_markup=publish_keyboard(story, selected),
         )
 
     @bot.message_handler(func=_is_caption_message, content_types=["text"])
@@ -83,5 +85,5 @@ def register_photo_handlers(bot):
             message.chat.id,
             story.file_id,
             caption=story.caption,
-            reply_markup=preview_keyboard(),
+            reply_markup=preview_keyboard(story, default_selected(telegram_id)),
         )

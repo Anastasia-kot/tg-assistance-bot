@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Optional
 
 
@@ -10,6 +10,7 @@ class PendingStory:
     file_id: str
     caption: Optional[str] = None
     is_waiting_for_caption: bool = False
+    selected: frozenset[str] = frozenset()
 
 
 _lock = threading.Lock()
@@ -20,12 +21,16 @@ def set_pending(
     telegram_id: int,
     file_id: str,
     caption: Optional[str] = None,
-) -> None:
+    selected: frozenset[str] | None = None,
+) -> PendingStory:
+    story = PendingStory(
+        file_id=file_id,
+        caption=caption,
+        selected=selected or frozenset(),
+    )
     with _lock:
-        _pending[int(telegram_id)] = PendingStory(
-            file_id=file_id,
-            caption=caption,
-        )
+        _pending[int(telegram_id)] = story
+    return story
 
 
 def get_pending(telegram_id: int) -> Optional[PendingStory]:
@@ -38,11 +43,7 @@ def wait_for_caption(telegram_id: int) -> Optional[PendingStory]:
         story = _pending.get(int(telegram_id))
         if story is None:
             return None
-        updated = PendingStory(
-            file_id=story.file_id,
-            caption=story.caption,
-            is_waiting_for_caption=True,
-        )
+        updated = replace(story, is_waiting_for_caption=True)
         _pending[int(telegram_id)] = updated
         return updated
 
@@ -52,7 +53,29 @@ def set_caption(telegram_id: int, caption: str) -> Optional[PendingStory]:
         story = _pending.get(int(telegram_id))
         if story is None or not story.is_waiting_for_caption:
             return None
-        updated = PendingStory(file_id=story.file_id, caption=caption)
+        updated = replace(story, caption=caption, is_waiting_for_caption=False)
+        _pending[int(telegram_id)] = updated
+        return updated
+
+
+def toggle_pending_target(
+    telegram_id: int,
+    platform: str,
+    *,
+    allowed: frozenset[str],
+) -> Optional[PendingStory]:
+    with _lock:
+        story = _pending.get(int(telegram_id))
+        if story is None:
+            return None
+        if platform not in allowed:
+            return story
+        selected = set(story.selected)
+        if platform in selected:
+            selected.remove(platform)
+        else:
+            selected.add(platform)
+        updated = replace(story, selected=frozenset(selected))
         _pending[int(telegram_id)] = updated
         return updated
 

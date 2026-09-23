@@ -2,15 +2,30 @@ from __future__ import annotations
 
 from typing import Optional
 
+from model.platforms import PlatformStatus
+
 MSG_START_NEED_AUTH = (
     "Этот бот публикует ваши фото в сторис.\n\n"
     "Один раз пришлите api_id и api_hash с my.telegram.org (раздел API development tools) "
     "одним сообщением, например:\n123456:0123456789abcdef0123456789abcdef"
 )
 MSG_START_READY = (
-    "Бот готов. Пришлите фотографию и выберите, куда опубликовать сторис: "
-    "Telegram или VK. VK подключается через /vk_login."
+    "Бот публикует фото в сторис выбранных соцсетей.\n"
+    "Подключите аккаунты кнопками ниже, затем пришлите фотографию."
 )
+MSG_STATUS_READY = "Текущие подключения:"
+MSG_ACCOUNTS_HEADER = "Соцсети"
+MSG_ASK_PUBLISH = "Отметьте соцсети и нажмите «Опубликовать»."
+MSG_PUBLISH_NEED_TARGET = "Выберите хотя бы одну подключённую соцсеть."
+MSG_PLATFORM_LOCKED = "Сначала подключите {title}: /start"
+MSG_TG_LOGIN_HINT = (
+    "Telegram уже публикует сторис в бизнес-аккаунт бота. "
+    "Отдельный вход пользователя не нужен."
+)
+MSG_TG_LOGOUT_HINT = (
+    "Telegram нельзя отключить в чате: сторис идут в бизнес-аккаунт бота."
+)
+MSG_VK_LOGIN_HINT = "VK ещё не настроен. Задайте VK_APP_ID и VK_CLIENT_SECRET."
 MSG_ASK_KEYS = (
     "Пришлите api_id и api_hash одним сообщением в формате:\n"
     "123456:0123456789abcdef0123456789abcdef"
@@ -22,10 +37,8 @@ MSG_ASK_CODE = "Пришлите код, который пришёл в Telegram
 MSG_ASK_2FA = "Пришлите облачный пароль двухэтапной проверки Telegram."
 MSG_CODE_SENT = "Код отправлен в Telegram на {phone}. Пришлите его сюда."
 MSG_AUTH_DONE = "Аккаунт подключён. Пришлите картинку для сторис."
-MSG_STATUS_READY = "Публикация сторис доступна. Можно присылать фотографии."
 MSG_STATUS_NEED = "Аккаунт ещё не подключён. Нажмите /start или /login."
 MSG_LOGOUT = "Сессия удалена. Чтобы публиковать сторис, пришлите api_id и api_hash или /login."
-MSG_ASK_PUBLISH = "Куда опубликовать сторис?"
 MSG_ASK_CAPTION = "Пришлите текст для сторис одним сообщением."
 MSG_CAPTION_TOO_LONG = "Текст слишком длинный. Допустимо не более {limit} символов."
 MSG_PUBLISHED = "Сториз опубликована:\n{platforms}"
@@ -74,6 +87,14 @@ MSG_UNKNOWN_COMMAND = (
     "Неизвестная команда. Доступны /start, /login, /status, /logout, "
     "/vk_login, /vk_status, /vk_logout."
 )
+
+
+def accounts_message(intro: str, statuses: list[PlatformStatus]) -> str:
+    lines = [intro, "", MSG_ACCOUNTS_HEADER]
+    for status in statuses:
+        mark = "✅" if status.connected else "❌"
+        lines.append(f"{mark} {status.title}: {status.detail}")
+    return "\n".join(lines)
 
 
 def mask_phone(phone: Optional[str]) -> str:

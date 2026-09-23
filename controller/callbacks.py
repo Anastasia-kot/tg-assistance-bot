@@ -8,7 +8,17 @@ from telebot.apihelper import ApiTelegramException
 
 from config import business_connection_id
 from controller.helpers import telegram_id_of
-from model.pending import clear_pending, get_pending, wait_for_caption
+from model.pending import (
+    clear_pending,
+    get_pending,
+    toggle_pending_target,
+    wait_for_caption,
+)
+from model.platforms import (
+    PLATFORM_TITLES,
+    PLATFORM_VK,
+    connected_platform_keys,
+)
 from model.stories import STORY_PERIOD_SECONDS, user_lock
 from model.vk_retry import (
     MAX_ATTEMPTS,
@@ -20,39 +30,39 @@ from model.vk_stories import VkSessionRequired, VkStoriesError, publish_vk_photo
 from view import (
     CB_ADD_TEXT,
     CB_EDIT_TEXT,
-    CB_PUBLISH_BOTH,
+    CB_PUBLISH_GO,
     CB_PUBLISH_NO,
-    CB_PUBLISH_TELEGRAM,
-    CB_PUBLISH_VK,
-    CB_PUBLISH_YES,
     CB_VK_RETRY_CANCEL,
     MSG_ASK_CAPTION,
     MSG_BUSINESS_CONNECTION_MISSING,
     MSG_CANCELLED,
     MSG_NO_PENDING,
+    MSG_PLATFORM_LOCKED,
+    MSG_PUBLISH_NEED_TARGET,
     MSG_PUBLISHED,
     MSG_VK_RETRY_CANCELLED,
     MSG_VK_RETRY_SCHEDULED,
     MSG_VK_STORY_NEEDS_LOGIN,
+    is_locked_callback,
+    is_toggle_callback,
+    locked_platform_from_callback,
     preview_keyboard,
     publish_keyboard,
+    toggle_platform_from_callback,
     vk_retry_cancel_keyboard,
 )
 
 logger = logging.getLogger("controller.callbacks")
 
-TARGET_TELEGRAM = "telegram"
-TARGET_VK = "vk"
-PUBLISH_TARGETS = {
-    CB_PUBLISH_YES: frozenset({TARGET_TELEGRAM}),
-    CB_PUBLISH_TELEGRAM: frozenset({TARGET_TELEGRAM}),
-    CB_PUBLISH_VK: frozenset({TARGET_VK}),
-    CB_PUBLISH_BOTH: frozenset({TARGET_TELEGRAM, TARGET_VK}),
-}
-TARGET_NAMES = {
-    TARGET_TELEGRAM: "Telegram",
-    TARGET_VK: "VK",
-}
+TARGET_NAMES = dict(PLATFORM_TITLES)
+
+
+def _story_keyboard(telegram_id: int, caption: str | None):
+    connected = connected_platform_keys(telegram_id)
+    story = get_pending(telegram_id)
+    if caption:
+        return preview_keyboard(story, connected)
+    return publish_keyboard(story, connected)
 
 
 def _telegram_error_message(error: ApiTelegramException) -> str:
@@ -90,7 +100,7 @@ def _publish_target(
     image_bytes: bytes,
     caption: str | None,
 ) -> None:
-    if target == TARGET_VK:
+    if target == PLATFORM_VK:
         publish_vk_photo(telegram_id, image_bytes, caption)
         return
     connection_id = business_connection_id()
@@ -131,10 +141,6 @@ def _remove_inline_keyboard(bot, call) -> None:
         logger.debug("could not remove story keyboard", exc_info=True)
 
 
-def _story_keyboard(caption: str | None):
-    return preview_keyboard() if caption else publish_keyboard()
-
-
 def register_callback_handlers(bot):
     @bot.callback_query_handler(
         func=lambda call: call.data in {CB_ADD_TEXT, CB_EDIT_TEXT}
@@ -153,15 +159,58 @@ def register_callback_handlers(bot):
         bot.answer_callback_query(call.id)
         bot.send_message(call.message.chat.id, MSG_ASK_CAPTION)
 
-    @bot.callback_query_handler(
-        func=lambda call: call.data in PUBLISH_TARGETS
-    )
+    @bot.callback_query_handler(func=is_toggle_callback)
+    def handle_toggle(call):
+        telegram_id = telegram_id_of(call)
+        if telegram_id is None:
+            bot.answer_callback_query(call.id)
+            return
+        platform = toggle_platform_from_callback(call.data)
+        connected = connected_platform_keys(telegram_id)
+        story = toggle_pending_target(telegram_id, platform, allowed=connected)
+        if story is None:
+            bot.answer_callback_query(call.id, text=MSG_NO_PENDING)
+            return
+        bot.answer_callback_query(call.id)
+        try:
+            bot.edit_message_reply_markup(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                reply_markup=_story_keyboard(telegram_id, story.caption),
+            )
+        except Exception:
+            logger.debug("could not refresh publish checklist", exc_info=True)
+
+    @bot.callback_query_handler(func=is_locked_callback)
+    def handle_locked(call):
+        platform = locked_platform_from_callback(call.data)
+        title = PLATFORM_TITLES.get(platform, platform)
+        bot.answer_callback_query(
+            call.id,
+            text=MSG_PLATFORM_LOCKED.format(title=title),
+            show_alert=True,
+        )
+
+    @bot.callback_query_handler(func=lambda call: call.data == CB_PUBLISH_GO)
     def handle_publish(call):
         telegram_id = telegram_id_of(call)
         if telegram_id is None:
             bot.answer_callback_query(call.id)
             return
-        targets = PUBLISH_TARGETS[call.data]
+        story = get_pending(telegram_id)
+        if story is None:
+            bot.answer_callback_query(call.id, text=MSG_NO_PENDING)
+            _edit(bot, call, MSG_NO_PENDING)
+            return
+        connected = connected_platform_keys(telegram_id)
+        targets = [key for key in story.selected if key in connected]
+        if not targets:
+            bot.answer_callback_query(
+                call.id,
+                text=MSG_PUBLISH_NEED_TARGET,
+                show_alert=True,
+            )
+            return
         bot.answer_callback_query(call.id, text="Публикую…")
         with user_lock(telegram_id):
             story = get_pending(telegram_id)
@@ -180,7 +229,7 @@ def register_callback_handlers(bot):
                     bot,
                     call,
                     "Не удалось скачать фото для публикации. Пришлите картинку ещё раз.",
-                    reply_markup=_story_keyboard(story.caption),
+                    reply_markup=_story_keyboard(telegram_id, story.caption),
                 )
                 return
             published = []
@@ -209,11 +258,11 @@ def register_callback_handlers(bot):
                         bot,
                         call,
                         _telegram_error_message(error),
-                        reply_markup=_story_keyboard(story.caption),
+                        reply_markup=_story_keyboard(telegram_id, story.caption),
                     )
                     return
                 except VkStoriesError as error:
-                    if target == TARGET_VK and error.retryable:
+                    if target == PLATFORM_VK and error.retryable:
                         scheduled = schedule_vk_retry(
                             bot,
                             telegram_id,
@@ -238,7 +287,7 @@ def register_callback_handlers(bot):
                         bot,
                         call,
                         error.user_message,
-                        reply_markup=_story_keyboard(story.caption),
+                        reply_markup=_story_keyboard(telegram_id, story.caption),
                     )
                     return
                 except Exception:
@@ -252,7 +301,7 @@ def register_callback_handlers(bot):
                         call,
                         "Не удалось опубликовать сторис из-за внутренней ошибки. "
                         "Подробности записаны в журнал.",
-                        reply_markup=_story_keyboard(story.caption),
+                        reply_markup=_story_keyboard(telegram_id, story.caption),
                     )
                     return
             if not published:

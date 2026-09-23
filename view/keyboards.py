@@ -2,14 +2,28 @@ from __future__ import annotations
 
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 
-CB_PUBLISH_YES = "story:yes"
-CB_PUBLISH_TELEGRAM = "story:publish:telegram"
-CB_PUBLISH_VK = "story:publish:vk"
-CB_PUBLISH_BOTH = "story:publish:both"
+from model.pending import PendingStory
+from model.platforms import (
+    PLATFORM_ORDER,
+    PLATFORM_TITLES,
+    PlatformStatus,
+)
+
 CB_PUBLISH_NO = "story:no"
 CB_ADD_TEXT = "story:add_text"
 CB_EDIT_TEXT = "story:edit_text"
 CB_VK_RETRY_CANCEL = "vk:retry:cancel"
+CB_PUBLISH_GO = "story:publish"
+CB_TOGGLE_PREFIX = "story:toggle:"
+CB_LOCKED_PREFIX = "story:locked:"
+CB_ACC_TG_LOGIN = "acc:telegram:login"
+CB_ACC_TG_LOGOUT = "acc:telegram:logout"
+CB_ACC_VK_LOGOUT = "acc:vk:logout"
+CB_ACC_VK_LOGIN = "acc:vk:login"
+
+EMOJI_CHECKED = "✅"
+EMOJI_UNCHECKED = "⬜"
+EMOJI_LOCKED = "🔒"
 
 
 def phone_keyboard() -> ReplyKeyboardMarkup:
@@ -22,19 +36,68 @@ def remove_keyboard() -> ReplyKeyboardRemove:
     return ReplyKeyboardRemove()
 
 
-def _publish_target_rows(markup: InlineKeyboardMarkup) -> None:
-    markup.row(
-        InlineKeyboardButton("Telegram", callback_data=CB_PUBLISH_TELEGRAM),
-        InlineKeyboardButton("VK", callback_data=CB_PUBLISH_VK),
-    )
-    markup.row(
-        InlineKeyboardButton("Оба", callback_data=CB_PUBLISH_BOTH),
-    )
+def is_toggle_callback(data: str | None) -> bool:
+    return bool(data and data.startswith(CB_TOGGLE_PREFIX))
 
 
-def publish_keyboard() -> InlineKeyboardMarkup:
+def is_locked_callback(data: str | None) -> bool:
+    return bool(data and data.startswith(CB_LOCKED_PREFIX))
+
+
+def toggle_platform_from_callback(data: str) -> str:
+    return data[len(CB_TOGGLE_PREFIX) :]
+
+
+def locked_platform_from_callback(data: str) -> str:
+    return data[len(CB_LOCKED_PREFIX) :]
+
+
+def accounts_keyboard(statuses: list[PlatformStatus]) -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup()
-    _publish_target_rows(markup)
+    for status in statuses:
+        login = _login_button(status)
+        logout = InlineKeyboardButton(
+            "Выйти",
+            callback_data=(
+                CB_ACC_VK_LOGOUT if status.key == "vk" else CB_ACC_TG_LOGOUT
+            ),
+        )
+        markup.row(login, logout)
+    return markup
+
+
+def publish_keyboard(
+    story: PendingStory | None,
+    connected: frozenset[str],
+    *,
+    has_caption: bool = False,
+) -> InlineKeyboardMarkup:
+    selected = story.selected if story else frozenset()
+    markup = InlineKeyboardMarkup()
+    for key in PLATFORM_ORDER:
+        title = PLATFORM_TITLES[key]
+        if key not in connected:
+            markup.row(
+                InlineKeyboardButton(
+                    f"{EMOJI_LOCKED} {title}",
+                    callback_data=f"{CB_LOCKED_PREFIX}{key}",
+                )
+            )
+            continue
+        mark = EMOJI_CHECKED if key in selected else EMOJI_UNCHECKED
+        markup.row(
+            InlineKeyboardButton(
+                f"{mark} {title}",
+                callback_data=f"{CB_TOGGLE_PREFIX}{key}",
+            )
+        )
+    markup.row(InlineKeyboardButton("Опубликовать", callback_data=CB_PUBLISH_GO))
+    if has_caption:
+        markup.row(
+            InlineKeyboardButton("Изменить текст", callback_data=CB_EDIT_TEXT),
+            InlineKeyboardButton("Отменить", callback_data=CB_PUBLISH_NO),
+        )
+        return markup
     markup.row(
         InlineKeyboardButton("Добавить текст", callback_data=CB_ADD_TEXT),
         InlineKeyboardButton("Отменить", callback_data=CB_PUBLISH_NO),
@@ -42,14 +105,11 @@ def publish_keyboard() -> InlineKeyboardMarkup:
     return markup
 
 
-def preview_keyboard() -> InlineKeyboardMarkup:
-    markup = InlineKeyboardMarkup()
-    _publish_target_rows(markup)
-    markup.row(
-        InlineKeyboardButton("Изменить текст", callback_data=CB_EDIT_TEXT),
-        InlineKeyboardButton("Отменить", callback_data=CB_PUBLISH_NO),
-    )
-    return markup
+def preview_keyboard(
+    story: PendingStory | None,
+    connected: frozenset[str],
+) -> InlineKeyboardMarkup:
+    return publish_keyboard(story, connected, has_caption=True)
 
 
 def vk_retry_cancel_keyboard() -> InlineKeyboardMarkup:
@@ -64,3 +124,10 @@ def vk_oauth_keyboard(url: str) -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup()
     markup.row(InlineKeyboardButton("Открыть VK", url=url))
     return markup
+
+
+def _login_button(status: PlatformStatus) -> InlineKeyboardButton:
+    if status.key == "vk" and status.login_url:
+        return InlineKeyboardButton("Войти", url=status.login_url)
+    callback = CB_ACC_VK_LOGIN if status.key == "vk" else CB_ACC_TG_LOGIN
+    return InlineKeyboardButton("Войти", callback_data=callback)

@@ -35,7 +35,7 @@ class AccountsUiTest(unittest.TestCase):
         self.assertTrue(text.startswith("Соцсети\n"))
         self.assertNotIn("\n\n", text)
 
-    def test_accounts_keyboard_labels_include_platform(self):
+    def test_accounts_keyboard_status_and_single_action(self):
         markup = accounts_keyboard(
             [
                 PlatformStatus("telegram", "Telegram", True, "бизнес"),
@@ -48,18 +48,18 @@ class AccountsUiTest(unittest.TestCase):
                 ),
             ]
         )
-        labels = [button.text for row in markup.keyboard for button in row]
+        rows = [[button.text for button in row] for row in markup.keyboard]
         self.assertEqual(
-            labels,
+            rows,
             [
-                "Войти в Telegram",
-                "Выйти из Telegram",
-                "Войти в VK",
-                "Выйти из VK",
+                ["✅ Telegram", "Выйти из Telegram"],
+                ["❌ VK", "Войти в VK"],
             ],
         )
-        vk_login = markup.keyboard[1][0]
+        self.assertEqual(markup.keyboard[0][0].callback_data, "acc:info:telegram")
+        vk_login = markup.keyboard[1][1]
         self.assertEqual(vk_login.url, "https://id.vk.ru/authorize")
+        self.assertEqual(markup.keyboard[0][1].callback_data, "acc:telegram:logout")
 
     def test_main_keyboard_has_start(self):
         from view.keyboards import BTN_START, main_keyboard

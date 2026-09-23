@@ -41,7 +41,8 @@ def start_polling_thread(bot: telebot.TeleBot) -> None:
 
 
 def serve_http() -> None:
-    port = int(os.getenv("PORT") or "8080")
+    # Bothost panel default / docs example is 3000; PORT must match the panel.
+    port = int(os.getenv("PORT") or "3000")
     logger.info("HTTP server listening on 0.0.0.0:%s", port)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
 
@@ -72,10 +73,22 @@ def health() -> PlainTextResponse:
     return PlainTextResponse("ok")
 
 
-@app.get("/vk/callback")
-@app.get("/vk/callback/")
-def vk_callback(request: Request) -> HTMLResponse:
-    query = parse_qs(request.url.query, keep_blank_values=True)
+@app.api_route("/vk/callback", methods=["GET", "POST"])
+@app.api_route("/vk/callback/", methods=["GET", "POST"])
+async def vk_callback(request: Request) -> HTMLResponse:
+    if request.method == "POST":
+        content_type = (request.headers.get("content-type") or "").lower()
+        if "application/json" in content_type:
+            payload = await request.json()
+            query = {key: [str(value)] for key, value in dict(payload or {}).items()}
+        else:
+            form = await request.form()
+            query = {key: [str(value)] for key, value in form.multi_items()}
+        # Prefer query string when present (some VK flows mix both).
+        if request.url.query:
+            query = {**query, **parse_qs(request.url.query, keep_blank_values=True)}
+    else:
+        query = parse_qs(request.url.query, keep_blank_values=True)
     status, body = handle_vk_callback(query)
     return HTMLResponse(content=body, status_code=status)
 

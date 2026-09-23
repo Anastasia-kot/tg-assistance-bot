@@ -55,8 +55,26 @@ def vk_client_secret() -> str | None:
     return _optional_env("VK_CLIENT_SECRET")
 
 
+def _https_base(raw: str) -> str:
+    base = raw.rstrip("/")
+    if base.startswith("http://") or base.startswith("https://"):
+        return base
+    return f"https://{base}"
+
+
 def vk_public_base() -> str:
-    return (_optional_env("VK_PUBLIC_BASE") or DEFAULT_VK_PUBLIC_BASE).rstrip("/")
+    custom = _optional_env("VK_PUBLIC_BASE")
+    if custom:
+        return _https_base(custom)
+    # Bothost injects DOMAIN when web interface / domain is enabled.
+    domain = _optional_env("DOMAIN")
+    if domain:
+        return _https_base(domain)
+    logger.warning(
+        "VK_PUBLIC_BASE and DOMAIN are unset; falling back to DEFAULT_VK_PUBLIC_BASE=%s",
+        DEFAULT_VK_PUBLIC_BASE,
+    )
+    return DEFAULT_VK_PUBLIC_BASE.rstrip("/")
 
 
 def vk_redirect_uri() -> str:

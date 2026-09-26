@@ -21,8 +21,18 @@ from model.vk_oauth import (
     exchange_vk_code,
     parse_vk_callback,
 )
+from model.vk_flood_check import (
+    MAX_FLOOD_CHECKS,
+    schedule_vk_flood_check,
+)
 from model.vk_stories import VkFloodError, VkStoriesError, save_vk_token, vk_account_label
-from view.messages import MSG_VK_AUTH_DONE, MSG_VK_OAUTH_CALLBACK_FAIL, MSG_VK_OAUTH_CALLBACK_OK
+from view.messages import (
+    MSG_VK_AUTH_DONE,
+    MSG_VK_FLOOD_CHECK_SCHEDULED,
+    MSG_VK_OAUTH_CALLBACK_FAIL,
+    MSG_VK_OAUTH_CALLBACK_OK,
+)
+from view.keyboards import vk_flood_check_cancel_keyboard
 
 logger = logging.getLogger("http_app")
 
@@ -123,6 +133,29 @@ def handle_vk_callback(query: dict[str, list[str]]) -> tuple[int, str]:
                 telegram_id,
                 MSG_VK_AUTH_DONE.format(name="VK") + "\n\n" + flood_error.user_message,
             )
+            delay = schedule_vk_flood_check(
+                _bot,
+                telegram_id,
+                telegram_id,
+                attempt=1,
+            )
+            if delay is not None and _bot is not None:
+                try:
+                    _bot.send_message(
+                        telegram_id,
+                        MSG_VK_FLOOD_CHECK_SCHEDULED.format(
+                            minutes=delay,
+                            attempt=1,
+                            max_attempts=MAX_FLOOD_CHECKS,
+                            error=flood_error.user_message,
+                        ),
+                        reply_markup=vk_flood_check_cancel_keyboard(),
+                    )
+                except Exception:
+                    logger.exception(
+                        "failed to schedule flood-check notice telegram_id=%s",
+                        telegram_id,
+                    )
         return 200, MSG_VK_OAUTH_CALLBACK_OK
     except (VkOAuthError, VkStoriesError) as auth_error:
         logger.warning("VK OAuth callback failed: %s", auth_error.user_message)

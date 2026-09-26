@@ -159,7 +159,7 @@ def register_callback_handlers(bot):
         bot.answer_callback_query(call.id)
         bot.send_message(call.message.chat.id, MSG_ASK_CAPTION)
 
-    @bot.callback_query_handler(func=is_toggle_callback)
+    @bot.callback_query_handler(func=lambda call: is_toggle_callback(call.data))
     def handle_toggle(call):
         telegram_id = telegram_id_of(call)
         if telegram_id is None:
@@ -181,7 +181,7 @@ def register_callback_handlers(bot):
         except Exception:
             logger.debug("could not refresh publish checklist", exc_info=True)
 
-    @bot.callback_query_handler(func=is_locked_callback)
+    @bot.callback_query_handler(func=lambda call: is_locked_callback(call.data))
     def handle_locked(call):
         platform = locked_platform_from_callback(call.data)
         title = PLATFORM_TITLES.get(platform, platform)

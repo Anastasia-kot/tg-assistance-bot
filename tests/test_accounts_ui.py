@@ -120,6 +120,27 @@ class AccountsUiTest(unittest.TestCase):
         )
         self.assertEqual(story.selected, frozenset({PLATFORM_TELEGRAM}))
 
+    def test_callback_filters_accept_query_object(self):
+        from types import SimpleNamespace
+
+        from view.keyboards import (
+            is_account_info_callback,
+            is_locked_callback,
+            is_toggle_callback,
+        )
+
+        toggle = SimpleNamespace(data="story:toggle:vk")
+        locked = SimpleNamespace(data="story:locked:vk")
+        info = SimpleNamespace(data="acc:info:telegram")
+        other = SimpleNamespace(data="vk:flood:cancel")
+
+        self.assertTrue(is_toggle_callback(toggle))
+        self.assertTrue(is_toggle_callback("story:toggle:vk"))
+        self.assertFalse(is_toggle_callback(other))
+        self.assertTrue(is_locked_callback(locked))
+        self.assertTrue(is_account_info_callback(info))
+        self.assertFalse(is_account_info_callback(toggle))
+
 
 if __name__ == "__main__":
     unittest.main()

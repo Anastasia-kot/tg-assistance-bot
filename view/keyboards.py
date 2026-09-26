@@ -20,6 +20,9 @@ CB_ACC_TG_LOGIN = "acc:telegram:login"
 CB_ACC_TG_LOGOUT = "acc:telegram:logout"
 CB_ACC_VK_LOGOUT = "acc:vk:logout"
 CB_ACC_VK_LOGIN = "acc:vk:login"
+CB_ACC_VK_METHOD_KATE = "acc:vk:method:kate"
+CB_ACC_VK_METHOD_OWN = "acc:vk:method:own"
+CB_ACC_VK_METHOD_CANCEL = "acc:vk:method:cancel"
 CB_ACC_INFO_PREFIX = "acc:info:"
 
 BTN_START = "Старт"
@@ -146,10 +149,20 @@ def vk_oauth_keyboard(url: str) -> InlineKeyboardMarkup:
     return markup
 
 
+def vk_auth_method_keyboard() -> InlineKeyboardMarkup:
+    markup = InlineKeyboardMarkup()
+    markup.row(
+        InlineKeyboardButton("Kate Mobile", callback_data=CB_ACC_VK_METHOD_KATE),
+        InlineKeyboardButton("Своё приложение", callback_data=CB_ACC_VK_METHOD_OWN),
+    )
+    markup.row(
+        InlineKeyboardButton("Отмена", callback_data=CB_ACC_VK_METHOD_CANCEL),
+    )
+    return markup
+
+
 def _login_button(status: PlatformStatus) -> InlineKeyboardButton:
     label = f"Войти в {status.title}"
-    if status.key == "vk" and status.login_url:
-        return InlineKeyboardButton(label, url=status.login_url)
     callback = CB_ACC_VK_LOGIN if status.key == "vk" else CB_ACC_TG_LOGIN
     return InlineKeyboardButton(label, callback_data=callback)
 

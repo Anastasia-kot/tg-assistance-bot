@@ -3,8 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from config import business_connection_id
-from model.vk_oauth import vk_oauth_ready
-from model.vk_stories import has_vk_session, vk_account_label
+from model.vk_stories import has_vk_session, vk_account_label, vk_auth_method
 
 PLATFORM_TELEGRAM = "telegram"
 PLATFORM_VK = "vk"
@@ -12,6 +11,10 @@ PLATFORM_ORDER = (PLATFORM_TELEGRAM, PLATFORM_VK)
 PLATFORM_TITLES = {
     PLATFORM_TELEGRAM: "Telegram",
     PLATFORM_VK: "VK",
+}
+AUTH_METHOD_LABELS = {
+    "kate": "Kate Mobile",
+    "own_app": "VK ID",
 }
 
 
@@ -25,9 +28,10 @@ class PlatformStatus:
 
 
 def platform_statuses(telegram_id: int, *, vk_login_url: str | None = None) -> list[PlatformStatus]:
+    del vk_login_url  # method picker replaces direct OAuth URL on the grid
     return [
         _telegram_status(),
-        _vk_status(telegram_id, vk_login_url=vk_login_url),
+        _vk_status(telegram_id),
     ]
 
 
@@ -49,19 +53,18 @@ def _telegram_status() -> PlatformStatus:
     )
 
 
-def _vk_status(telegram_id: int, *, vk_login_url: str | None) -> PlatformStatus:
+def _vk_status(telegram_id: int) -> PlatformStatus:
     connected = has_vk_session(telegram_id)
     if connected:
-        detail = vk_account_label(telegram_id) or "аккаунт подключён"
+        name = vk_account_label(telegram_id) or "аккаунт подключён"
+        method = AUTH_METHOD_LABELS.get(vk_auth_method(telegram_id) or "", "")
+        detail = f"{name} · {method}" if method else name
     else:
-        detail = "не подключено"
-    login_url = None
-    if vk_oauth_ready():
-        login_url = vk_login_url
+        detail = "не подключено — выберите способ входа"
     return PlatformStatus(
         key=PLATFORM_VK,
         title=PLATFORM_TITLES[PLATFORM_VK],
         connected=connected,
         detail=detail,
-        login_url=login_url,
+        login_url=None,
     )

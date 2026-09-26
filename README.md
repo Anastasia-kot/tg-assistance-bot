@@ -21,9 +21,14 @@ Telegram-бот на [pyTelegramBotAPI](https://github.com/eternnoir/pyTelegramB
 | `/status` | текущие подключения |
 | `/login` | подключить аккаунт Telegram заново |
 | `/logout` | удалить сессию Telegram |
-| `/vk_login` | подключить VK |
+| `/vk_login` | выбрать способ входа во VK (Kate / своё приложение) |
 | `/vk_logout` | отключить VK |
 | `/vk_status` | статус VK |
+
+### Вход во VK
+
+1. **Kate Mobile** — без HTTPS-домена: бот даёт ссылку, после «Разрешить» пользователь присылает адрес страницы с `access_token=`.
+2. **Своё приложение (VK ID)** — OAuth с callback на `{DOMAIN}/vk/callback` (нужны `VK_APP_ID`, `VK_CLIENT_SECRET` и доступный `/health`).
 
 Бот отвечает только в личных чатах.
 
@@ -35,8 +40,9 @@ Telegram-бот на [pyTelegramBotAPI](https://github.com/eternnoir/pyTelegramB
 |------------|------------|
 | `BOT_TOKEN` | токен бота от [@BotFather](https://t.me/BotFather). |
 | `BUSINESS_CONNECTION_ID` | идентификатор подключения Telegram Business для публикации сторис. |
-| `VK_APP_ID` / `VK_CLIENT_SECRET` | приложение VK ID для OAuth. |
-| `VK_PUBLIC_BASE` или `DOMAIN` | публичный HTTPS-базовый URL бота (Bothost задаёт `DOMAIN`). Redirect: `{base}/vk/callback`. |
+| `VK_APP_ID` / `VK_CLIENT_SECRET` | своё приложение VK ID (способ «Своё приложение»). |
+| `VK_KATE_APP_ID` | client_id для Kate (по умолчанию `2685278`). |
+| `VK_PUBLIC_BASE` или `DOMAIN` | публичный HTTPS URL бота для callback своего приложения. |
 | `VK_REDIRECT_URI` | полный redirect URI, если нужен путь не `/vk/callback`. |
 | `PORT` | порт HTTP (Bothost, обычно `3000`); должен совпадать с портом в панели. |
 

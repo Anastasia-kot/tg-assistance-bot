@@ -55,11 +55,23 @@ def vk_client_secret() -> str | None:
     return _optional_env("VK_CLIENT_SECRET")
 
 
+def vk_kate_app_id() -> str:
+    return _optional_env("VK_KATE_APP_ID") or "2685278"
+
+
 def _https_base(raw: str) -> str:
     base = raw.rstrip("/")
     if base.startswith("http://") or base.startswith("https://"):
         return base
     return f"https://{base}"
+
+
+def vk_public_base_configured() -> bool:
+    return bool(
+        _optional_env("VK_PUBLIC_BASE")
+        or _optional_env("DOMAIN")
+        or _optional_env("VK_REDIRECT_URI")
+    )
 
 
 def vk_public_base() -> str:

@@ -14,16 +14,27 @@ from urllib.parse import urlencode
 
 import requests
 
-from config import vk_app_id, vk_client_secret, vk_redirect_uri
+from config import (
+    vk_app_id,
+    vk_client_secret,
+    vk_kate_app_id,
+    vk_public_base,
+    vk_public_base_configured,
+    vk_redirect_uri,
+)
 from model.session_files import session_root
-from model.vk_stories import VkStoriesError
+from model.vk_stories import VK_API_VERSION, VK_OAUTH_SCOPE, VkStoriesError
 
 logger = logging.getLogger("vk_oauth")
 
 AUTHORIZE_URL = "https://id.vk.ru/authorize"
 ACCESS_TOKEN_URL = "https://id.vk.ru/oauth2/auth"
+KATE_AUTHORIZE_URL = "https://oauth.vk.com/authorize"
+KATE_REDIRECT_URI = "https://oauth.vk.com/blank.html"
 STATE_TTL_SECONDS = 600
 VK_ID_SCOPE = "vkid.personal_info"
+AUTH_METHOD_KATE = "kate"
+AUTH_METHOD_OWN = "own_app"
 
 _pkce_lock = threading.Lock()
 
@@ -31,8 +42,44 @@ class VkOAuthError(VkStoriesError):
     pass
 
 
+def kate_auth_ready() -> bool:
+    return bool(vk_kate_app_id())
+
+
+def own_app_auth_ready() -> bool:
+    return bool(vk_app_id() and vk_client_secret() and vk_public_base_configured())
+
+
 def vk_oauth_ready() -> bool:
-    return bool(vk_app_id() and vk_client_secret() and vk_redirect_uri())
+    """True if at least one VK login method can start."""
+    return kate_auth_ready() or own_app_auth_ready()
+
+
+def kate_authorize_url() -> str:
+    return KATE_AUTHORIZE_URL + "?" + urlencode(
+        {
+            "client_id": vk_kate_app_id(),
+            "display": "page",
+            "redirect_uri": KATE_REDIRECT_URI,
+            "scope": VK_OAUTH_SCOPE,
+            "response_type": "token",
+            "v": VK_API_VERSION,
+            "revoke": 1,
+        }
+    )
+
+
+def vk_callback_reachable(*, timeout: float = 5.0) -> bool:
+    if not vk_public_base_configured():
+        return False
+    try:
+        response = requests.get(
+            f"{vk_public_base()}/health",
+            timeout=timeout,
+        )
+    except requests.RequestException:
+        return False
+    return response.status_code == 200 and response.text.strip().lower() == "ok"
 
 
 def encode_oauth_state(telegram_id: int, *, now: int | None = None) -> str:

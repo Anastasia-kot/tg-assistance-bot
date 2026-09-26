@@ -9,6 +9,8 @@ from model.vk_oauth import (
     decode_oauth_state,
     encode_oauth_state,
     exchange_vk_code,
+    kate_authorize_url,
+    own_app_auth_ready,
     parse_vk_callback,
     vk_authorize_url,
     vk_oauth_ready,
@@ -37,6 +39,23 @@ class VkOAuthTest(unittest.TestCase):
 
     def test_oauth_is_ready_with_app_credentials(self):
         self.assertTrue(vk_oauth_ready())
+        self.assertTrue(own_app_auth_ready())
+
+    def test_kate_authorize_url_uses_implicit_flow(self):
+        url = kate_authorize_url()
+        self.assertTrue(url.startswith("https://oauth.vk.com/authorize?"))
+        self.assertIn("client_id=2685278", url)
+        self.assertIn("response_type=token", url)
+        self.assertIn("blank.html", url)
+        self.assertIn("stories", url)
+        self.assertIn("offline", url)
+
+    def test_own_app_not_ready_without_public_base(self):
+        with patch.dict(os.environ, {}, clear=False):
+            for key in ("VK_PUBLIC_BASE", "DOMAIN", "VK_REDIRECT_URI"):
+                os.environ.pop(key, None)
+            self.assertFalse(own_app_auth_ready())
+            self.assertTrue(vk_oauth_ready())  # Kate always available
 
     def test_authorize_url_uses_vk_id_and_pkce(self):
         url = vk_authorize_url(42)

@@ -1,16 +1,23 @@
 from __future__ import annotations
 
 from controller.helpers import telegram_id_of
+from controller.vk_login import (
+    send_vk_method_picker,
+    start_kate_login,
+    start_own_app_login,
+)
 from model.platforms import platform_statuses
-from model.vk_oauth import vk_authorize_url, vk_oauth_ready
 from model.vk_retry import cancel_vk_retry
 from model.vk_stories import logout_vk
 from view import (
+    CB_ACC_VK_METHOD_CANCEL,
+    CB_ACC_VK_METHOD_KATE,
+    CB_ACC_VK_METHOD_OWN,
     MSG_STATUS_READY,
     MSG_TG_LOGIN_HINT,
     MSG_TG_LOGOUT_HINT,
-    MSG_VK_LOGIN_HINT,
     MSG_VK_LOGOUT,
+    MSG_VK_METHOD_CANCELLED,
     accounts_keyboard,
     accounts_message,
     account_info_key_from_callback,
@@ -20,8 +27,7 @@ from view import (
 
 
 def account_statuses(telegram_id: int):
-    login_url = vk_authorize_url(telegram_id) if vk_oauth_ready() else None
-    return platform_statuses(telegram_id, vk_login_url=login_url)
+    return platform_statuses(telegram_id)
 
 
 def send_accounts_panel(
@@ -81,8 +87,43 @@ def register_account_handlers(bot) -> None:
         bot.answer_callback_query(call.id, text=MSG_TG_LOGOUT_HINT, show_alert=True)
 
     @bot.callback_query_handler(func=lambda call: call.data == "acc:vk:login")
-    def handle_vk_login_missing(call):
-        bot.answer_callback_query(call.id, text=MSG_VK_LOGIN_HINT, show_alert=True)
+    def handle_vk_login_button(call):
+        telegram_id = telegram_id_of(call)
+        if telegram_id is None:
+            bot.answer_callback_query(call.id)
+            return
+        bot.answer_callback_query(call.id)
+        send_vk_method_picker(bot, call.message.chat.id)
+
+    @bot.callback_query_handler(func=lambda call: call.data == CB_ACC_VK_METHOD_KATE)
+    def handle_vk_method_kate(call):
+        telegram_id = telegram_id_of(call)
+        if telegram_id is None:
+            bot.answer_callback_query(call.id)
+            return
+        bot.answer_callback_query(call.id)
+        start_kate_login(bot, call.message.chat.id, telegram_id)
+
+    @bot.callback_query_handler(func=lambda call: call.data == CB_ACC_VK_METHOD_OWN)
+    def handle_vk_method_own(call):
+        telegram_id = telegram_id_of(call)
+        if telegram_id is None:
+            bot.answer_callback_query(call.id)
+            return
+        bot.answer_callback_query(call.id)
+        start_own_app_login(bot, call.message.chat.id, telegram_id)
+
+    @bot.callback_query_handler(func=lambda call: call.data == CB_ACC_VK_METHOD_CANCEL)
+    def handle_vk_method_cancel(call):
+        bot.answer_callback_query(call.id, text=MSG_VK_METHOD_CANCELLED)
+        try:
+            bot.edit_message_text(
+                MSG_VK_METHOD_CANCELLED,
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+            )
+        except Exception:
+            bot.send_message(call.message.chat.id, MSG_VK_METHOD_CANCELLED)
 
     @bot.callback_query_handler(func=lambda call: call.data == "acc:vk:logout")
     def handle_vk_logout_button(call):

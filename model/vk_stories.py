@@ -111,6 +111,39 @@ def save_vk_token(
     return profile
 
 
+def refresh_vk_profile(telegram_id: int) -> dict[str, Any]:
+    """Re-run users.get for a saved token. Used after flood control clears."""
+    if not has_vk_session(telegram_id):
+        return {
+            "ok": False,
+            "retryable": False,
+            "error": f"Сначала подключите аккаунт VK: {LOGIN_COMMAND}",
+            "name": None,
+        }
+    token = _token(telegram_id)
+    try:
+        profile = _users_get(token)
+    except VkStoriesError as error:
+        return {
+            "ok": False,
+            "retryable": error.retryable,
+            "error": error.user_message,
+            "name": None,
+        }
+    name = _display_name(profile)
+    payload = read_session(PLATFORM, telegram_id)
+    payload["user_id"] = profile.get("id")
+    payload["name"] = name
+    write_session(PLATFORM, telegram_id, payload)
+    return {
+        "ok": True,
+        "retryable": False,
+        "error": None,
+        "name": name,
+        "profile": profile,
+    }
+
+
 def has_vk_session(telegram_id: int) -> bool:
     return has_session(PLATFORM, telegram_id, "access_token")
 

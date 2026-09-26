@@ -16,6 +16,11 @@ from model.vk_oauth import (
     vk_callback_reachable,
     vk_oauth_ready,
 )
+from model.vk_flood_check import (
+    MAX_FLOOD_CHECKS,
+    cancel_vk_flood_check,
+    schedule_vk_flood_check,
+)
 from model.vk_retry import cancel_vk_retry
 from model.vk_stories import (
     VkFloodError,
@@ -35,6 +40,7 @@ from view import (
     MSG_VK_ASK_TOKEN_AGAIN,
     MSG_VK_AUTH_DONE,
     MSG_VK_CALLBACK_UNREACHABLE,
+    MSG_VK_FLOOD_CHECK_SCHEDULED,
     MSG_VK_LOGOUT,
     MSG_VK_OAUTH_NOT_CONFIGURED,
     MSG_VK_STATUS_NEED,
@@ -42,6 +48,7 @@ from view import (
     MSG_VK_TOKEN_OK,
     main_keyboard,
     vk_auth_method_keyboard,
+    vk_flood_check_cancel_keyboard,
     vk_oauth_keyboard,
 )
 
@@ -133,6 +140,7 @@ def register_vk_login_handlers(bot) -> None:
             return
         clear_vk_token_wait(telegram_id)
         cancel_vk_retry(telegram_id)
+        cancel_vk_flood_check(telegram_id)
         with user_lock(telegram_id):
             logout_vk(telegram_id)
         bot.send_message(
@@ -163,6 +171,23 @@ def register_vk_login_handlers(bot) -> None:
         except VkFloodError as error:
             clear_vk_token_wait(telegram_id)
             bot.send_message(message.chat.id, error.user_message)
+            delay = schedule_vk_flood_check(
+                bot,
+                telegram_id,
+                message.chat.id,
+                attempt=1,
+            )
+            if delay is not None:
+                bot.send_message(
+                    message.chat.id,
+                    MSG_VK_FLOOD_CHECK_SCHEDULED.format(
+                        minutes=delay,
+                        attempt=1,
+                        max_attempts=MAX_FLOOD_CHECKS,
+                        error=error.user_message,
+                    ),
+                    reply_markup=vk_flood_check_cancel_keyboard(),
+                )
             return
         except VkStoriesError as error:
             bot.send_message(message.chat.id, error.user_message)

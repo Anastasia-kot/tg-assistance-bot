@@ -70,7 +70,13 @@ def parse_vk_token(raw: str) -> str:
     return text
 
 
-def save_vk_token(telegram_id: int, access_token: str) -> dict[str, Any]:
+def save_vk_token(
+    telegram_id: int,
+    access_token: str,
+    *,
+    auth_method: str | None = None,
+) -> dict[str, Any]:
+    extra = {"auth_method": auth_method} if auth_method else {}
     try:
         profile = _users_get(access_token)
     except VkStoriesError as error:
@@ -81,6 +87,7 @@ def save_vk_token(telegram_id: int, access_token: str) -> dict[str, Any]:
                 "access_token": access_token,
                 "user_id": None,
                 "name": "VK",
+                **extra,
             },
         )
         logger.warning(
@@ -98,6 +105,7 @@ def save_vk_token(telegram_id: int, access_token: str) -> dict[str, Any]:
             "access_token": access_token,
             "user_id": profile.get("id"),
             "name": _display_name(profile),
+            **extra,
         },
     )
     return profile
@@ -105,6 +113,11 @@ def save_vk_token(telegram_id: int, access_token: str) -> dict[str, Any]:
 
 def has_vk_session(telegram_id: int) -> bool:
     return has_session(PLATFORM, telegram_id, "access_token")
+
+
+def vk_auth_method(telegram_id: int) -> str | None:
+    method = read_session(PLATFORM, telegram_id).get("auth_method")
+    return str(method) if method else None
 
 
 def logout_vk(telegram_id: int) -> None:

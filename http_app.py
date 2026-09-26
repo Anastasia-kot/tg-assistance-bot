@@ -116,7 +116,7 @@ def handle_vk_callback(query: dict[str, list[str]]) -> tuple[int, str]:
             state=state,
         )["access_token"]
         with user_lock(telegram_id):
-            save_vk_token(telegram_id, token)
+            save_vk_token(telegram_id, token, auth_method="own_app")
     except VkFloodError as flood_error:
         if telegram_id is not None:
             _notify(

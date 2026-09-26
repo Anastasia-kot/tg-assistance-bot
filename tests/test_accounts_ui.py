@@ -39,13 +39,7 @@ class AccountsUiTest(unittest.TestCase):
         markup = accounts_keyboard(
             [
                 PlatformStatus("telegram", "Telegram", True, "бизнес"),
-                PlatformStatus(
-                    "vk",
-                    "VK",
-                    False,
-                    "не подключено",
-                    login_url="https://id.vk.ru/authorize",
-                ),
+                PlatformStatus("vk", "VK", False, "не подключено"),
             ]
         )
         rows = [[button.text for button in row] for row in markup.keyboard]
@@ -57,9 +51,23 @@ class AccountsUiTest(unittest.TestCase):
             ],
         )
         self.assertEqual(markup.keyboard[0][0].callback_data, "acc:info:telegram")
-        vk_login = markup.keyboard[1][1]
-        self.assertEqual(vk_login.url, "https://id.vk.ru/authorize")
+        self.assertEqual(markup.keyboard[1][1].callback_data, "acc:vk:login")
         self.assertEqual(markup.keyboard[0][1].callback_data, "acc:telegram:logout")
+
+    def test_vk_auth_method_keyboard(self):
+        from view.keyboards import (
+            CB_ACC_VK_METHOD_CANCEL,
+            CB_ACC_VK_METHOD_KATE,
+            CB_ACC_VK_METHOD_OWN,
+            vk_auth_method_keyboard,
+        )
+
+        markup = vk_auth_method_keyboard()
+        labels = [button.text for row in markup.keyboard for button in row]
+        self.assertEqual(labels, ["Kate Mobile", "Своё приложение", "Отмена"])
+        self.assertEqual(markup.keyboard[0][0].callback_data, CB_ACC_VK_METHOD_KATE)
+        self.assertEqual(markup.keyboard[0][1].callback_data, CB_ACC_VK_METHOD_OWN)
+        self.assertEqual(markup.keyboard[1][0].callback_data, CB_ACC_VK_METHOD_CANCEL)
 
     def test_main_keyboard_has_start(self):
         from view.keyboards import BTN_START, main_keyboard

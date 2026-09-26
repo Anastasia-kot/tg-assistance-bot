@@ -13,6 +13,7 @@ CB_PUBLISH_NO = "story:no"
 CB_ADD_TEXT = "story:add_text"
 CB_EDIT_TEXT = "story:edit_text"
 CB_VK_RETRY_CANCEL = "vk:retry:cancel"
+CB_VK_FLOOD_CHECK_CANCEL = "vk:flood:cancel"
 CB_PUBLISH_GO = "story:publish"
 CB_TOGGLE_PREFIX = "story:toggle:"
 CB_LOCKED_PREFIX = "story:locked:"
@@ -139,6 +140,17 @@ def vk_retry_cancel_keyboard() -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup()
     markup.row(
         InlineKeyboardButton("Отменить повтор", callback_data=CB_VK_RETRY_CANCEL),
+    )
+    return markup
+
+
+def vk_flood_check_cancel_keyboard() -> InlineKeyboardMarkup:
+    markup = InlineKeyboardMarkup()
+    markup.row(
+        InlineKeyboardButton(
+            "Отменить проверку",
+            callback_data=CB_VK_FLOOD_CHECK_CANCEL,
+        ),
     )
     return markup
 

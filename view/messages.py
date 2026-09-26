@@ -99,6 +99,23 @@ MSG_VK_RETRY_SCHEDULED = (
     "{error}"
 )
 MSG_VK_RETRY_CANCELLED = "Автоповтор публикации во VK отменён."
+MSG_VK_FLOOD_CHECK_SCHEDULED = (
+    "Повторная проверка VK через {minutes} мин "
+    "(попытка {attempt} из {max_attempts}). Можно отменить.\n\n"
+    "{error}"
+)
+MSG_VK_FLOOD_CHECK_OK = (
+    "VK снова отвечает (проверка {attempt}): профиль «{name}» доступен. "
+    "Токен сохранён, можно публиковать сторис."
+)
+MSG_VK_FLOOD_CHECK_FAILED = (
+    "Проверка VK завершилась ошибкой (повтор не планируется):\n{error}"
+)
+MSG_VK_FLOOD_CHECK_EXHAUSTED = (
+    "Лимит автопроверок VK исчерпан (последняя попытка {attempt}). "
+    "Токен не сбрасывали — позже проверьте /vk_status.\n\n{error}"
+)
+MSG_VK_FLOOD_CHECK_CANCELLED = "Автопроверки VK после flood отменены."
 MSG_VK_TOKEN_OK = "VK-токен живой: stories.getPhotoUploadServer вернул upload_url."
 MSG_CANCELLED = "Отменено. Пришлите новую картинку, когда будете готовы."
 MSG_NO_PENDING = "Нет картинки для публикации. Пришлите фото."

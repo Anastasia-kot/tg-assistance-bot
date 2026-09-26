@@ -7,15 +7,18 @@ from controller.vk_login import (
     start_own_app_login,
 )
 from model.platforms import platform_statuses
+from model.vk_flood_check import cancel_vk_flood_check
 from model.vk_retry import cancel_vk_retry
 from model.vk_stories import logout_vk
 from view import (
     CB_ACC_VK_METHOD_CANCEL,
     CB_ACC_VK_METHOD_KATE,
     CB_ACC_VK_METHOD_OWN,
+    CB_VK_FLOOD_CHECK_CANCEL,
     MSG_STATUS_READY,
     MSG_TG_LOGIN_HINT,
     MSG_TG_LOGOUT_HINT,
+    MSG_VK_FLOOD_CHECK_CANCELLED,
     MSG_VK_LOGOUT,
     MSG_VK_METHOD_CANCELLED,
     accounts_keyboard,
@@ -132,6 +135,34 @@ def register_account_handlers(bot) -> None:
             bot.answer_callback_query(call.id)
             return
         cancel_vk_retry(telegram_id)
+        cancel_vk_flood_check(telegram_id)
         logout_vk(telegram_id)
         bot.answer_callback_query(call.id, text=MSG_VK_LOGOUT)
         refresh_accounts_panel(bot, call, telegram_id, intro=MSG_STATUS_READY)
+
+    @bot.callback_query_handler(func=lambda call: call.data == CB_VK_FLOOD_CHECK_CANCEL)
+    def handle_vk_flood_check_cancel(call):
+        telegram_id = telegram_id_of(call)
+        if telegram_id is None:
+            bot.answer_callback_query(call.id)
+            return
+        cancelled = cancel_vk_flood_check(telegram_id)
+        bot.answer_callback_query(
+            call.id,
+            text="Отменено" if cancelled else "Проверки нет",
+        )
+        try:
+            bot.edit_message_text(
+                MSG_VK_FLOOD_CHECK_CANCELLED
+                if cancelled
+                else "Автопроверка VK уже не запланирована.",
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+            )
+        except Exception:
+            bot.send_message(
+                call.message.chat.id,
+                MSG_VK_FLOOD_CHECK_CANCELLED
+                if cancelled
+                else "Автопроверка VK уже не запланирована.",
+            )

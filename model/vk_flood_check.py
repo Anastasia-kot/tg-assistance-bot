@@ -5,7 +5,7 @@ import threading
 from dataclasses import dataclass
 
 from model.stories import user_lock
-from model.vk_stories import VkSessionRequired, refresh_vk_profile
+from model.vk_stories import VkSessionRequired, check_vk_stories_ready, vk_account_label
 
 logger = logging.getLogger("vk_flood_check")
 
@@ -101,7 +101,7 @@ def _run_vk_flood_check(bot, telegram_id: int, chat_id: int, attempt: int) -> No
 
     try:
         with user_lock(telegram_id):
-            result = refresh_vk_profile(telegram_id)
+            result = check_vk_stories_ready(telegram_id)
     except VkSessionRequired as error:
         bot.send_message(chat_id, error.user_message)
         return
@@ -111,7 +111,7 @@ def _run_vk_flood_check(bot, telegram_id: int, chat_id: int, attempt: int) -> No
         return
 
     if result["ok"]:
-        name = result.get("name") or "VK"
+        name = result.get("name") or vk_account_label(telegram_id) or "VK"
         bot.send_message(
             chat_id,
             MSG_VK_FLOOD_CHECK_OK.format(name=name, attempt=attempt),

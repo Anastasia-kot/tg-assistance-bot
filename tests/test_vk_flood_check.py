@@ -27,6 +27,31 @@ class FakeResponse:
             raise vk_stories.requests.HTTPError(f"status {self.status_code}")
 
 
+def _stories_ok(url, data=None, files=None, timeout=None):
+    if str(url).endswith("stories.getPhotoUploadServer"):
+        return FakeResponse({"response": {"upload_url": "https://upload.vk/story"}})
+    if str(url).endswith("account.getAppPermissions"):
+        return FakeResponse({"response": vk_stories.VK_STORIES_PERMISSION | 65536})
+    if str(url).endswith("users.get"):
+        return FakeResponse(
+            {
+                "response": [
+                    {
+                        "id": 7,
+                        "first_name": "Ivan",
+                        "last_name": "Petrov",
+                        "screen_name": "ivan",
+                    }
+                ]
+            }
+        )
+    return FakeResponse({"response": {}})
+
+
+def _stories_flood(url, data=None, files=None, timeout=None):
+    return FakeResponse({"error": {"error_code": 9, "error_msg": "Flood control"}})
+
+
 class FloodCheckDelayTest(unittest.TestCase):
     def test_delay_grows_by_five_minutes(self):
         self.assertEqual(flood_check_delay_minutes(1), 5)
@@ -85,39 +110,35 @@ class FloodCheckScheduleTest(unittest.TestCase):
             timer_cls.return_value = MagicMock()
             schedule_vk_flood_check(self.bot, 42, 99, attempt=attempt)
 
-    def test_run_ok_notifies_chat(self):
+    def test_run_ok_probes_stories_not_users_get(self):
+        calls = []
+
         def fake_post(url, data=None, files=None, timeout=None):
-            return FakeResponse(
-                {
-                    "response": [
-                        {
-                            "id": 7,
-                            "first_name": "Ivan",
-                            "last_name": "Petrov",
-                            "screen_name": "ivan",
-                        }
-                    ]
-                }
-            )
+            calls.append(str(url))
+            return _stories_ok(url, data, files, timeout)
 
         with patch.object(vk_stories.requests, "post", side_effect=fake_post):
-            vk_stories.save_vk_token(42, "vk-access-token-value-12345")
+            vk_stories.save_vk_token(
+                42,
+                "vk-access-token-value-12345",
+                auth_method="kate",
+            )
             self._arm_job(attempt=1)
             vk_flood_check._run_vk_flood_check(self.bot, 42, 99, attempt=1)
-        self.bot.send_message.assert_called()
+        self.assertTrue(any(u.endswith("stories.getPhotoUploadServer") for u in calls))
+        self.assertFalse(any(u.endswith("users.get") for u in calls))
         text = self.bot.send_message.call_args[0][1]
-        self.assertIn("Ivan Petrov", text)
-        self.assertIn("доступен", text)
+        self.assertIn("stories", text)
+        self.assertIn("доступны", text)
 
     def test_run_flood_reschedules_with_plus_five(self):
-        def fake_post(url, data=None, files=None, timeout=None):
-            return FakeResponse(
-                {"error": {"error_code": 9, "error_msg": "Flood control"}}
-            )
-
-        with patch.object(vk_stories.requests, "post", side_effect=fake_post):
+        with patch.object(vk_stories.requests, "post", side_effect=_stories_flood):
             with self.assertRaises(VkFloodError):
-                vk_stories.save_vk_token(42, "vk-access-token-value-12345")
+                vk_stories.save_vk_token(
+                    42,
+                    "vk-access-token-value-12345",
+                    auth_method="kate",
+                )
             self._arm_job(attempt=1)
             with patch.object(
                 vk_flood_check,
@@ -131,7 +152,7 @@ class FloodCheckScheduleTest(unittest.TestCase):
         self.assertIn("попытка 2", text)
 
 
-class RefreshVkProfileTest(unittest.TestCase):
+class KateStoriesProbeTest(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.env = patch.dict(os.environ, {"SESSION_DIR": self.temp_dir.name})
@@ -141,57 +162,68 @@ class RefreshVkProfileTest(unittest.TestCase):
         self.env.stop()
         self.temp_dir.cleanup()
 
-    def test_refresh_updates_name_after_success(self):
-        def fake_post(url, data=None, files=None, timeout=None):
-            return FakeResponse(
-                {
-                    "response": [
-                        {
-                            "id": 7,
-                            "first_name": "Ivan",
-                            "last_name": "Petrov",
-                            "screen_name": "ivan",
-                        }
-                    ]
-                }
-            )
+    def test_kate_save_skips_users_get(self):
+        calls = []
 
+        def fake_post(url, data=None, files=None, timeout=None):
+            calls.append(str(url))
+            return _stories_ok(url, data, files, timeout)
+
+        with patch.object(vk_stories.requests, "post", side_effect=fake_post):
+            profile = vk_stories.save_vk_token(
+                7,
+                "vk-access-token-value-12345",
+                auth_method="kate",
+            )
+        self.assertEqual(profile["first_name"], "VK")
+        self.assertTrue(vk_stories.has_vk_session(7))
+        self.assertTrue(any(u.endswith("stories.getPhotoUploadServer") for u in calls))
+        self.assertFalse(any(u.endswith("users.get") for u in calls))
+
+    def test_kate_flood_on_stories_keeps_token(self):
+        with patch.object(vk_stories.requests, "post", side_effect=_stories_flood):
+            with self.assertRaises(VkFloodError) as error:
+                vk_stories.save_vk_token(
+                    8,
+                    "vk-access-token-value-12345",
+                    auth_method="kate",
+                )
+        self.assertTrue(vk_stories.has_vk_session(8))
+        self.assertIn("Flood control", error.exception.user_message)
+
+    def test_stories_ready_ok(self):
         from model.session_files import write_session
 
         write_session(
             vk_stories.PLATFORM,
-            5,
+            9,
             {
                 "access_token": "vk-access-token-value-12345",
                 "user_id": None,
-                "name": "VK",
+                "name": "Kate",
+                "auth_method": "kate",
             },
         )
-        with patch.object(vk_stories.requests, "post", side_effect=fake_post):
-            result = vk_stories.refresh_vk_profile(5)
+        with patch.object(vk_stories.requests, "post", side_effect=_stories_ok):
+            result = vk_stories.check_vk_stories_ready(9)
         self.assertTrue(result["ok"])
-        self.assertEqual(result["name"], "Ivan Petrov (@ivan)")
-        self.assertEqual(vk_stories.vk_account_label(5), "Ivan Petrov (@ivan)")
+        self.assertTrue(result["has_upload_url"])
+        self.assertEqual(result["name"], "Kate")
 
-    def test_refresh_marks_flood_retryable(self):
-        def fake_post(url, data=None, files=None, timeout=None):
-            return FakeResponse(
-                {"error": {"error_code": 9, "error_msg": "Flood control"}}
-            )
-
+    def test_stories_ready_marks_flood_retryable(self):
         from model.session_files import write_session
 
         write_session(
             vk_stories.PLATFORM,
-            6,
+            10,
             {
                 "access_token": "vk-access-token-value-12345",
                 "user_id": None,
                 "name": "VK",
             },
         )
-        with patch.object(vk_stories.requests, "post", side_effect=fake_post):
-            result = vk_stories.refresh_vk_profile(6)
+        with patch.object(vk_stories.requests, "post", side_effect=_stories_flood):
+            result = vk_stories.check_vk_stories_ready(10)
         self.assertFalse(result["ok"])
         self.assertTrue(result["retryable"])
         self.assertIn("Flood control", result["error"])

@@ -77,6 +77,30 @@ def save_vk_token(
     auth_method: str | None = None,
 ) -> dict[str, Any]:
     extra = {"auth_method": auth_method} if auth_method else {}
+    stub = {"id": None, "first_name": "VK", "last_name": ""}
+    # Kate: validate via stories upload server — users.get floods Kate tokens.
+    if auth_method == "kate":
+        write_session(
+            PLATFORM,
+            telegram_id,
+            {
+                "access_token": access_token,
+                "user_id": None,
+                "name": "VK",
+                **extra,
+            },
+        )
+        try:
+            _probe_stories_upload(access_token)
+        except VkStoriesError as error:
+            logger.warning(
+                "VK stories probe failed while saving Kate token: "
+                "telegram_id=%s kept error=%s",
+                telegram_id,
+                error.user_message,
+            )
+            raise
+        return stub
     try:
         profile = _users_get(access_token)
     except VkStoriesError as error:
@@ -97,7 +121,7 @@ def save_vk_token(
         )
         if isinstance(error, VkFloodError):
             raise
-        return {"id": None, "first_name": "VK", "last_name": ""}
+        return stub
     write_session(
         PLATFORM,
         telegram_id,
@@ -111,8 +135,50 @@ def save_vk_token(
     return profile
 
 
+def check_vk_stories_ready(telegram_id: int) -> dict[str, Any]:
+    """Probe stories.getPhotoUploadServer for a saved token (not users.get)."""
+    if not has_vk_session(telegram_id):
+        return {
+            "ok": False,
+            "retryable": False,
+            "has_upload_url": False,
+            "error": f"Сначала подключите аккаунт VK: {LOGIN_COMMAND}",
+            "name": None,
+        }
+    token = _token(telegram_id)
+    try:
+        upload_url = _probe_stories_upload(token)
+    except VkStoriesError as error:
+        logger.warning(
+            "VK stories probe failed: telegram_id=%s retryable=%s error=%s",
+            telegram_id,
+            error.retryable,
+            error.user_message,
+        )
+        return {
+            "ok": False,
+            "retryable": error.retryable,
+            "has_upload_url": False,
+            "error": error.user_message,
+            "name": vk_account_label(telegram_id),
+        }
+    name = vk_account_label(telegram_id) or "VK"
+    logger.info(
+        "VK stories probe ok: telegram_id=%s has_upload_url=%s",
+        telegram_id,
+        bool(upload_url),
+    )
+    return {
+        "ok": True,
+        "retryable": False,
+        "has_upload_url": True,
+        "error": None,
+        "name": name,
+    }
+
+
 def refresh_vk_profile(telegram_id: int) -> dict[str, Any]:
-    """Re-run users.get for a saved token. Used after flood control clears."""
+    """Re-run users.get for a saved token (own-app profile refresh)."""
     if not has_vk_session(telegram_id):
         return {
             "ok": False,
@@ -168,37 +234,18 @@ def check_vk_token(telegram_id: int) -> dict[str, Any]:
     token = _token(telegram_id)
     try:
         _log_token_permissions(telegram_id, token)
-        upload_url = _call(
-            "stories.getPhotoUploadServer",
-            token,
-            {"add_to_news": 1},
-        ).get("upload_url")
     except VkStoriesError as error:
         logger.warning(
-            "VK token check failed: telegram_id=%s retryable=%s error=%s",
+            "VK getAppPermissions skipped: telegram_id=%s error=%s",
             telegram_id,
-            error.retryable,
             error.user_message,
         )
-        return {
-            "ok": False,
-            "retryable": error.retryable,
-            "has_upload_url": False,
-            "error": error.user_message,
-        }
-    if not upload_url:
-        return {
-            "ok": False,
-            "retryable": True,
-            "has_upload_url": False,
-            "error": "VK не вернул адрес загрузки истории.",
-        }
-    logger.info("VK token check ok: telegram_id=%s has_upload_url=True", telegram_id)
+    result = check_vk_stories_ready(telegram_id)
     return {
-        "ok": True,
-        "retryable": False,
-        "has_upload_url": True,
-        "error": None,
+        "ok": result["ok"],
+        "retryable": result["retryable"],
+        "has_upload_url": result.get("has_upload_url", False),
+        "error": result.get("error"),
     }
 
 
@@ -220,16 +267,7 @@ def publish_vk_photo(
         raise VkSessionRequired()
     token = _token(telegram_id)
     _log_token_permissions(telegram_id, token)
-    upload_url = _call(
-        "stories.getPhotoUploadServer",
-        token,
-        {"add_to_news": 1},
-    ).get("upload_url")
-    if not upload_url:
-        raise VkStoriesError(
-            "VK не вернул адрес загрузки истории.",
-            retryable=True,
-        )
+    upload_url = _probe_stories_upload(token)
     jpeg = _as_jpeg(image_bytes)
     try:
         uploaded = requests.post(
@@ -286,6 +324,20 @@ def _token(telegram_id: int) -> str:
     if not token:
         raise VkSessionRequired()
     return str(token)
+
+
+def _probe_stories_upload(access_token: str) -> str:
+    upload_url = _call(
+        "stories.getPhotoUploadServer",
+        access_token,
+        {"add_to_news": 1},
+    ).get("upload_url")
+    if not upload_url:
+        raise VkStoriesError(
+            "VK не вернул адрес загрузки истории.",
+            retryable=True,
+        )
+    return str(upload_url)
 
 
 def _users_get(access_token: str) -> dict[str, Any]:

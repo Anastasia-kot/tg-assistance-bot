@@ -105,8 +105,8 @@ MSG_VK_FLOOD_CHECK_SCHEDULED = (
     "{error}"
 )
 MSG_VK_FLOOD_CHECK_OK = (
-    "VK снова отвечает (проверка {attempt}): профиль «{name}» доступен. "
-    "Токен сохранён, можно публиковать сторис."
+    "VK снова отвечает (проверка {attempt}): stories доступны для «{name}» "
+    "(getPhotoUploadServer вернул upload_url). Токен сохранён, можно публиковать."
 )
 MSG_VK_FLOOD_CHECK_FAILED = (
     "Проверка VK завершилась ошибкой (повтор не планируется):\n{error}"

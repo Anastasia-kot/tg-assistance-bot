@@ -51,16 +51,28 @@ def remove_keyboard() -> ReplyKeyboardRemove:
     return ReplyKeyboardRemove()
 
 
-def is_toggle_callback(data: str | None) -> bool:
-    return bool(data and data.startswith(CB_TOGGLE_PREFIX))
+def _callback_data(data) -> str | None:
+    """Accept callback data string or CallbackQuery-like object."""
+    if data is None:
+        return None
+    if isinstance(data, str):
+        return data
+    return getattr(data, "data", None)
 
 
-def is_locked_callback(data: str | None) -> bool:
-    return bool(data and data.startswith(CB_LOCKED_PREFIX))
+def is_toggle_callback(data) -> bool:
+    text = _callback_data(data)
+    return bool(text and text.startswith(CB_TOGGLE_PREFIX))
 
 
-def is_account_info_callback(data: str | None) -> bool:
-    return bool(data and data.startswith(CB_ACC_INFO_PREFIX))
+def is_locked_callback(data) -> bool:
+    text = _callback_data(data)
+    return bool(text and text.startswith(CB_LOCKED_PREFIX))
+
+
+def is_account_info_callback(data) -> bool:
+    text = _callback_data(data)
+    return bool(text and text.startswith(CB_ACC_INFO_PREFIX))
 
 
 def account_info_key_from_callback(data: str) -> str:

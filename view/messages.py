@@ -100,13 +100,13 @@ MSG_VK_RETRY_SCHEDULED = (
 )
 MSG_VK_RETRY_CANCELLED = "Автоповтор публикации во VK отменён."
 MSG_VK_FLOOD_CHECK_SCHEDULED = (
-    "Повторная проверка VK через {minutes} мин "
+    "Повторная проверка stories VK через {minutes} мин "
     "(попытка {attempt} из {max_attempts}). Можно отменить.\n\n"
     "{error}"
 )
 MSG_VK_FLOOD_CHECK_OK = (
-    "VK снова отвечает (проверка {attempt}): профиль «{name}» доступен. "
-    "Токен сохранён, можно публиковать сторис."
+    "VK снова отвечает (проверка {attempt}): stories доступны для «{name}» "
+    "(getPhotoUploadServer вернул upload_url). Токен сохранён, можно публиковать."
 )
 MSG_VK_FLOOD_CHECK_FAILED = (
     "Проверка VK завершилась ошибкой (повтор не планируется):\n{error}"

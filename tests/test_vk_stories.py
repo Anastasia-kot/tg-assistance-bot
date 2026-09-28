@@ -90,6 +90,25 @@ class VkStoriesTest(unittest.TestCase):
         self.assertIn("Flood control", text)
         self.assertIn("10–15", text)
 
+    def test_kate_save_uses_stories_probe_not_users_get(self):
+        calls = []
+
+        def fake_post(url, data=None, files=None, timeout=None):
+            calls.append(str(url))
+            if str(url).endswith("stories.getPhotoUploadServer"):
+                return FakeResponse({"response": {"upload_url": "https://upload.vk/story"}})
+            return FakeResponse({"response": {}})
+
+        with patch.object(vk_stories.requests, "post", side_effect=fake_post):
+            profile = vk_stories.save_vk_token(
+                8,
+                "vk-access-token-value-12345",
+                auth_method="kate",
+            )
+        self.assertEqual(profile["first_name"], "VK")
+        self.assertTrue(any(u.endswith("stories.getPhotoUploadServer") for u in calls))
+        self.assertFalse(any(u.endswith("users.get") for u in calls))
+
     def test_kate_mask_without_stories_bit_still_publishes(self):
         vk_stories.save_vk_token(3, "vk-access-token-value-12345")
         mask = 65600

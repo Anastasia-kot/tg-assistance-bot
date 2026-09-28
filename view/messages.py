@@ -100,7 +100,7 @@ MSG_VK_RETRY_SCHEDULED = (
 )
 MSG_VK_RETRY_CANCELLED = "Автоповтор публикации во VK отменён."
 MSG_VK_FLOOD_CHECK_SCHEDULED = (
-    "Повторная проверка VK через {minutes} мин "
+    "Повторная проверка stories VK через {minutes} мин "
     "(попытка {attempt} из {max_attempts}). Можно отменить.\n\n"
     "{error}"
 )
